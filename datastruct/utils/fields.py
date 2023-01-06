@@ -36,6 +36,7 @@ def build_field(
         metadata=dict(
             datastruct=FieldMeta(
                 validated=False,
+                public=public,
                 ftype=ftype,
                 **kwargs,
             ),
@@ -45,15 +46,16 @@ def build_field(
 
 def build_wrapper(
     ftype: FieldType,
-    default: Any = ...,
-    default_factory: Any = MISSING,
+    default: Any = None,
+    default_factory: Any = None,
     **kwargs,
 ) -> Callable[[Field], Field]:
     def wrap(base: Field):
         return build_field(
             ftype=ftype,
-            default=default,
-            default_factory=default_factory,
+            default=default or base.default,
+            default_factory=default_factory or base.default_factory,
+            public=base.init,
             # meta
             base=base,
             **kwargs,
@@ -92,6 +94,13 @@ def field_get_type(field: Field) -> Tuple[type, Optional[type]]:
 
 
 def field_get_meta(field: Field) -> FieldMeta:
+    if not field.metadata:
+        raise ValueError(
+            f"Can't find field metadata of '{field.name}'; "
+            f"use datastruct.field() instead of dataclass.field(); "
+            f"remember to invoke wrapper fields (i.e. repeat()(), cond()()) "
+            f"passing the base field in the parameters",
+        )
     return field.metadata["datastruct"]
 
 
@@ -111,14 +120,29 @@ def field_validate(field: Field, meta: FieldMeta) -> None:
     if meta.validated:
         return
     field_type, item_type = field_get_type(field)
+
     # skip special fields (seek, padding, etc)
-    if field_type is Ellipsis:
-        if meta.ftype in [FieldType.FIELD, FieldType.REPEAT]:
-            raise TypeError("Cannot use Ellipsis for standard fields")
+    if not meta.public:
+        if field_type is not Ellipsis:
+            raise TypeError("Use Ellipsis (...) for special fields")
         return
+    if field_type is Ellipsis:
+        raise TypeError("Cannot use Ellipsis for standard fields")
+
     # check some known type constraints
-    if meta.ftype == FieldType.REPEAT:
-        base_meta = field_get_meta(meta.base)
+    if meta.ftype == FieldType.FIELD:
+        if item_type is not None:
+            # var: List[...] = field(...)
+            raise ValueError("Can't use a list without repeat() wrapper")
+        if is_dataclass(field_type) and meta.fmt:
+            # var: DataStruct = field(...)
+            raise ValueError("Use subfield() for instances of DataStruct")
+        if meta.fmt:
+            # validate format specifiers
+            fmt_check(meta.fmt)
+
+    elif meta.ftype == FieldType.REPEAT:
+        base_field, base_meta = field_get_base(meta)
         if item_type is None:
             # var: ... = repeat()(...)
             raise ValueError("Can't use repeat() for a non-list field")
@@ -130,18 +154,15 @@ def field_validate(field: Field, meta: FieldMeta) -> None:
         if base_meta.builder and not base_meta.always:
             # var: ... = repeat()(built(..., always=False))
             raise ValueError("Built fields inside repeat() are always built")
-        # update types and validate the item field
-        field.type = field_type
-        meta.base.type = item_type
-        field_validate(meta.base, base_meta)
-    elif item_type is not None:
-        # var: List[...] = field(...)
-        raise ValueError("Can't use a list without repeat() wrapper")
-    elif meta.ftype == FieldType.FIELD:
-        if is_dataclass(field_type) and meta.fmt:
-            # var: DataStruct = field(...)
-            raise ValueError("Use subfield() for instances of DataStruct")
-        if meta.fmt:
-            # validate format specifiers
-            fmt_check(meta.fmt)
+
+    # update types and validate base fields
+    if meta.base:
+        base_field, base_meta = field_get_base(meta)
+        base_field.name = field.name
+        base_field.type = field.type
+        if meta.ftype == FieldType.REPEAT:
+            # "unwrap" item types for repeat fields only
+            field.type = field_type
+            base_field.type = item_type or field_type
+        field_validate(base_field, base_meta)
     meta.validated = True

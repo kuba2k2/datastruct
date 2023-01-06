@@ -97,6 +97,15 @@ def repeat(
     )
 
 
+def cond(condition: Value[bool], *, if_not: Value[Any] = ...):
+    return build_wrapper(
+        ftype=FieldType.COND,
+        # meta
+        condition=condition,
+        if_not=if_not,
+    )
+
+
 def packing(check: Value[T]) -> Eval[T]:
     return lambda ctx: check(ctx) if ctx.packing else None
 

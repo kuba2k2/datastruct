@@ -43,10 +43,12 @@ class FieldType(Enum):
     SEEK = auto()
     PADDING = auto()
     REPEAT = auto()
+    COND = auto()
 
 
 class FieldMeta(Container):
     validated: bool
+    public: bool
     ftype: FieldType
     # FIELD
     fmt: Optional[Value[str]]
@@ -65,6 +67,9 @@ class FieldMeta(Container):
     count: Optional[Value[int]]
     when: Optional[Eval[bool]]
     last: Optional[Eval[bool]]
+    # COND
+    condition: Value[bool]
+    if_not: Value[Any]
 
 
 class Endianness(Enum):

@@ -30,6 +30,10 @@ class DataStruct:
             if value != Ellipsis:
                 continue
 
+            # extract some wrapper fields
+            if meta.ftype == FieldType.COND:
+                field, meta = field_get_base(meta)
+
             # create lists for repeat() fields
             if meta.ftype == FieldType.REPEAT:
                 # no need to care about 'default_factory' of 'field' here,
@@ -53,6 +57,14 @@ class DataStruct:
                 continue
 
             if meta.ftype == FieldType.FIELD and not meta.builder:
+                if field.default is not Ellipsis:
+                    # do what @dataclass would normally do - this is needed
+                    # for wrapper fields that are not REPEAT
+                    self.__setattr__(field.name, field.default)
+                    continue
+                if field.default_factory is not MISSING:
+                    self.__setattr__(field.name, field.default_factory())
+                    continue
                 if issubclass(field.type, DataStruct):
                     # try to initialize single fields with an empty object
                     self.__setattr__(field.name, field.type())
@@ -90,6 +102,11 @@ class DataStruct:
         for field, meta, value in fields:
             yield field.name
             # print(f"Packing field '{type(self).__name__}.{field.name}'")
+
+            if meta.ftype == FieldType.COND:
+                if evaluate(ctx, meta.condition) is False:
+                    continue
+                field, meta = field_get_base(meta)
 
             if meta.ftype == FieldType.SEEK:
                 field_do_seek(ctx, meta)
@@ -181,6 +198,15 @@ class DataStruct:
             # validate fields since they weren't validated before
             field_validate(field, meta)
             # print(f"Unpacking field '{cls.__name__}.{field.name}'")
+
+            if meta.ftype == FieldType.COND:
+                if evaluate(ctx, meta.condition) is False:
+                    if meta.if_not is not Ellipsis:
+                        value = evaluate(ctx, meta.if_not)
+                        ctx[field.name] = value
+                        values[field.name] = value
+                    continue
+                field, meta = field_get_base(meta)
 
             if meta.ftype == FieldType.SEEK:
                 field_do_seek(ctx, meta)
