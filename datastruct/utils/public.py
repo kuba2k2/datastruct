@@ -1,22 +1,36 @@
 #  Copyright (c) Kuba Szczodrzyński 2023-1-3.
 
-from ..types import Endianness
+from ..types import Config, Endianness
 
-ENDIANNESS_DEFAULT = Endianness.DEFAULT
+CONFIG = Config(
+    endianness=Endianness.DEFAULT,
+    padding_pattern=b"\xFF",
+    padding_check=False,
+)
 
 
-def datastruct(endianness: Endianness):
+def datastruct(
+    endianness: Endianness = None,
+    padding_pattern: bytes = None,
+    padding_check: bool = None,
+):
+    args = {k: v for k, v in locals().items() if v is not None}
+
     def wrap(cls):
-        setattr(cls, "_ENDIANNESS", endianness)
+        setattr(cls, "_CONFIG", args)
         return cls
 
     return wrap  # @datastruct(...)
 
 
-def set_default_endianness(endianness: Endianness):
-    global ENDIANNESS_DEFAULT
-    ENDIANNESS_DEFAULT = endianness
+def datastruct_config(
+    endianness: Endianness = None,
+    padding_pattern: bytes = None,
+    padding_check: bool = None,
+):
+    args = {k: v for k, v in locals().items() if v is not None}
+    CONFIG.update(args)
 
 
-def get_default_endianness():
-    return ENDIANNESS_DEFAULT
+def datastruct_get_config():
+    return CONFIG

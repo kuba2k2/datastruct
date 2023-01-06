@@ -3,7 +3,7 @@
 from .fields import built, field, padding, seek, skip, subfield
 from .main import DataStruct
 from .types import BIG, DEFAULT, LITTLE, NATIVE, NETWORK, Context, Endianness
-from .utils.public import datastruct, get_default_endianness, set_default_endianness
+from .utils.public import datastruct, datastruct_config, datastruct_get_config
 
 __all__ = [
     "BIG",
@@ -16,11 +16,11 @@ __all__ = [
     "NETWORK",
     "built",
     "datastruct",
+    "datastruct_config",
+    "datastruct_get_config",
     "field",
-    "get_default_endianness",
     "padding",
     "seek",
-    "set_default_endianness",
     "skip",
     "subfield",
 ]

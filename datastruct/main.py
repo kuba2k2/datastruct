@@ -3,9 +3,10 @@
 import dataclasses
 import struct
 from dataclasses import MISSING, Field, dataclass
+from functools import lru_cache
 from typing import IO, Any, Dict, Generator, List, Optional, Tuple, Type, TypeVar, Union
 
-from .types import Context, Endianness, FieldMeta, FieldType, T
+from .types import Config, Context, FieldMeta, FieldType, T
 from .utils.const import ARRAYS, EXCEPTIONS
 from .utils.context import build_context, evaluate
 from .utils.fields import (
@@ -18,7 +19,7 @@ from .utils.fields import (
     field_validate,
 )
 from .utils.fmt import fmt_evaluate
-from .utils.public import get_default_endianness
+from .utils.public import datastruct_get_config
 
 
 @dataclass
@@ -86,7 +87,7 @@ class DataStruct:
             value.pack(io=ctx.io, parent=ctx)
             return value
         # evaluate and validate the format
-        fmt = fmt_evaluate(ctx, meta.fmt, self.endianness())
+        fmt = fmt_evaluate(ctx, meta.fmt, self.config().endianness)
         if isinstance(fmt, int):
             # assume the field is bytes, write it directly
             ctx.io.write(value)
@@ -118,7 +119,7 @@ class DataStruct:
                 field_do_seek(ctx, meta)
                 continue
             if meta.ftype == FieldType.PADDING:
-                _, padding = field_get_padding(ctx, meta)
+                _, padding, _ = field_get_padding(self.config(), ctx, meta)
                 io.write(padding)
                 continue
 
@@ -182,7 +183,7 @@ class DataStruct:
         if issubclass(typ, DataStruct):
             return typ.unpack(io=ctx.io, parent=ctx)
         # evaluate and validate the format
-        fmt = fmt_evaluate(ctx, meta.fmt, cls.endianness())
+        fmt = fmt_evaluate(ctx, meta.fmt, cls.config().endianness)
         if isinstance(fmt, int):
             # assume the field is bytes, write it directly
             return ctx.io.read(fmt)
@@ -221,8 +222,8 @@ class DataStruct:
                 field_do_seek(ctx, meta)
                 continue
             if meta.ftype == FieldType.PADDING:
-                length, padding = field_get_padding(ctx, meta)
-                if io.read(length) != padding and meta.check:
+                length, padding, check = field_get_padding(cls.config(), ctx, meta)
+                if io.read(length) != padding and check:
                     raise ValueError(f"Invalid padding found")
                 continue
 
@@ -322,11 +323,11 @@ class DataStruct:
         return dataclasses.asdict(self)
 
     @classmethod
-    def endianness(cls) -> Endianness:
-        endianness = getattr(cls, "_ENDIANNESS", None)
-        if endianness is None:
-            return get_default_endianness()
-        return endianness
+    @lru_cache
+    def config(cls) -> Config:
+        config = Config(datastruct_get_config())
+        config.update(getattr(cls, "_CONFIG", {}))
+        return config
 
 
 DS = TypeVar("DS", bound=DataStruct)

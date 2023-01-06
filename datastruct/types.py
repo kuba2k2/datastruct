@@ -87,3 +87,9 @@ NATIVE = Endianness.NATIVE
 LITTLE = Endianness.LITTLE
 BIG = Endianness.BIG
 NETWORK = Endianness.NETWORK
+
+
+class Config(Container):
+    endianness: Endianness
+    padding_pattern: bytes
+    padding_check: bool

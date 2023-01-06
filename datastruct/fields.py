@@ -58,7 +58,7 @@ def skip(offset: Value[int]):
     )
 
 
-def padding(length: Value[int], *, pattern: bytes = b"\xFF", check: bool = False):
+def padding(length: Value[int], *, pattern: bytes = None, check: bool = None):
     return build_field(
         ftype=FieldType.PADDING,
         public=False,
@@ -73,7 +73,7 @@ def align(
     modulus: Value[int],
     absolute: bool,
     *,
-    pattern: bytes = b"\xFF",
+    pattern: bytes = None,
     check: bool = False,
 ):
     return build_field(

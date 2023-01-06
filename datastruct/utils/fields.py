@@ -6,7 +6,7 @@ from enum import Enum
 from io import SEEK_CUR
 from typing import Any, Callable, Optional, Tuple
 
-from ..types import Context, FieldMeta, FieldType
+from ..types import Config, Context, FieldMeta, FieldType
 from .const import ARRAYS
 from .context import evaluate
 from .fmt import fmt_check
@@ -117,7 +117,11 @@ def field_do_seek(ctx: Context, meta: FieldMeta) -> None:
         ctx.seek(offset, meta.whence)
 
 
-def field_get_padding(ctx: Context, meta: FieldMeta) -> Tuple[int, bytes]:
+def field_get_padding(
+    config: Config,
+    ctx: Context,
+    meta: FieldMeta,
+) -> Tuple[int, bytes, bool]:
     if meta.length:
         length = evaluate(ctx, meta.length)
     elif meta.modulus:
@@ -126,7 +130,9 @@ def field_get_padding(ctx: Context, meta: FieldMeta) -> Tuple[int, bytes]:
         length = pad_up(tell, modulus)
     else:
         raise ValueError("Unknown padding type")
-    return length, repstr(meta.pattern, length)
+    check = meta.check if meta.check is not None else config.padding_check
+    pattern = meta.pattern if meta.pattern is not None else config.padding_pattern
+    return length, repstr(pattern, length), check
 
 
 def field_validate(field: Field, meta: FieldMeta) -> None:
