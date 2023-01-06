@@ -14,6 +14,7 @@ from .utils.fields import (
     field_encode,
     field_get_base,
     field_get_meta,
+    field_get_padding,
     field_validate,
 )
 from .utils.fmt import fmt_evaluate
@@ -112,8 +113,7 @@ class DataStruct:
                 field_do_seek(ctx, meta)
                 continue
             if meta.ftype == FieldType.PADDING:
-                length = evaluate(ctx, meta.length)
-                padding = meta.pattern * length
+                _, padding = field_get_padding(ctx, meta)
                 io.write(padding)
                 continue
 
@@ -212,8 +212,7 @@ class DataStruct:
                 field_do_seek(ctx, meta)
                 continue
             if meta.ftype == FieldType.PADDING:
-                length = evaluate(ctx, meta.length)
-                padding = meta.pattern * length
+                length, padding = field_get_padding(ctx, meta)
                 if io.read(length) != padding and meta.check:
                     raise ValueError(f"Invalid padding found")
                 continue

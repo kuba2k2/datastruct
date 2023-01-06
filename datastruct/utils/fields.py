@@ -10,6 +10,7 @@ from ..types import Context, FieldMeta, FieldType
 from .const import ARRAYS
 from .context import evaluate
 from .fmt import fmt_check
+from .misc import pad_up, repstr
 
 
 def build_field(
@@ -114,6 +115,18 @@ def field_do_seek(ctx: Context, meta: FieldMeta) -> None:
         ctx.absseek(offset, meta.whence)
     else:
         ctx.seek(offset, meta.whence)
+
+
+def field_get_padding(ctx: Context, meta: FieldMeta) -> Tuple[int, bytes]:
+    if meta.length:
+        length = evaluate(ctx, meta.length)
+    elif meta.modulus:
+        modulus = evaluate(ctx, meta.modulus)
+        tell = ctx.abstell() if meta.absolute else ctx.tell()
+        length = pad_up(tell, modulus)
+    else:
+        raise ValueError("Unknown padding type")
+    return length, repstr(meta.pattern, length)
 
 
 def field_validate(field: Field, meta: FieldMeta) -> None:

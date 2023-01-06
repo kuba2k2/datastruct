@@ -60,6 +60,7 @@ class FieldMeta(Container):
     absolute: bool
     # PADDING
     length: Value[int]
+    modulus: Value[int]
     pattern: bytes
     check: bool
     # REPEAT

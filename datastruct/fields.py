@@ -77,6 +77,24 @@ def padding(length: Value[int], *, pattern: bytes = b"\xFF", check: bool = False
     )
 
 
+def align(
+    modulus: Value[int],
+    absolute: bool,
+    *,
+    pattern: bytes = b"\xFF",
+    check: bool = False,
+):
+    return build_field(
+        ftype=FieldType.PADDING,
+        public=False,
+        # meta
+        modulus=modulus,
+        absolute=absolute,
+        pattern=pattern,
+        check=check,
+    )
+
+
 def repeat(
     count: Value[int] = None,
     *,
