@@ -20,7 +20,7 @@ def fmt_check(fmt: Value[str]) -> None:
     if spec not in FMT_SPEC:
         raise ValueError(f"Format specifier '{orig_fmt}' is invalid or unsupported")
     if count and not count.isnumeric():
-        raise ValueError(f"Format specified '{orig_fmt}' has non-numeric count")
+        raise ValueError(f"Format specifier '{orig_fmt}' has non-numeric count")
 
 
 def fmt_evaluate(ctx: Context, fmt_val: Value[str], endianness: Endianness) -> str:

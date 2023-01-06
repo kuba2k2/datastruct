@@ -95,6 +95,10 @@ def field_get_meta(field: Field) -> FieldMeta:
     return field.metadata["datastruct"]
 
 
+def field_get_base(meta: FieldMeta) -> Tuple[Field, FieldMeta]:
+    return meta.base, field_get_meta(meta.base)
+
+
 def field_do_seek(ctx: Context, meta: FieldMeta) -> None:
     offset = evaluate(ctx, meta.offset)
     if meta.whence == SEEK_CUR or meta.absolute:
@@ -109,6 +113,8 @@ def field_validate(field: Field, meta: FieldMeta) -> None:
     field_type, item_type = field_get_type(field)
     # skip special fields (seek, padding, etc)
     if field_type is Ellipsis:
+        if meta.ftype in [FieldType.FIELD, FieldType.REPEAT]:
+            raise TypeError("Cannot use Ellipsis for standard fields")
         return
     # check some known type constraints
     if meta.ftype == FieldType.REPEAT:

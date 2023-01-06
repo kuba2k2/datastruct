@@ -3,15 +3,16 @@
 import dataclasses
 import struct
 from dataclasses import MISSING, Field, dataclass
-from typing import IO, Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
+from typing import IO, Any, Dict, Generator, List, Optional, Tuple, Type, TypeVar, Union
 
 from .types import Context, Endianness, FieldMeta, FieldType, T
-from .utils.const import ARRAYS
+from .utils.const import ARRAYS, EXCEPTIONS
 from .utils.context import build_context, evaluate
 from .utils.fields import (
     field_decode,
     field_do_seek,
     field_encode,
+    field_get_base,
     field_get_meta,
     field_validate,
 )
@@ -77,16 +78,17 @@ class DataStruct:
         ctx.io.write(struct.pack(fmt, encoded))
         return value
 
-    def pack(
+    def _pack(
         self,
         io: IO[bytes],
         parent: Optional["Context"] = None,
-    ) -> None:
+    ) -> Generator[str, None, None]:
         fields = self.fields()
         values = {f.name: v for f, m, v in fields if v != Ellipsis}
         ctx = build_context(parent, io, packing=True, unpacking=False, **values)
 
         for field, meta, value in fields:
+            yield field.name
             # print(f"Packing field '{type(self).__name__}.{field.name}'")
 
             if meta.ftype == FieldType.SEEK:
@@ -112,7 +114,7 @@ class DataStruct:
 
             i = 0
             count = evaluate(ctx, meta.count)
-            base_meta = field_get_meta(meta.base)
+            base_field, base_meta = field_get_base(meta)
             items_iter = iter(items)
 
             if isinstance(count, int) and len(value) != count and not base_meta.builder:
@@ -124,6 +126,7 @@ class DataStruct:
                 )
 
             while count is None or i < count:
+                yield f"{field.name}[{i}]"
                 ctx.i = i
                 if meta.when and not evaluate(ctx, meta.when):
                     break
@@ -149,6 +152,7 @@ class DataStruct:
                     break
                 i += 1
             ctx.pop("i", None)
+        yield None
 
     @classmethod
     def _read(cls, ctx: Context, meta: FieldMeta, typ: Type[T]) -> T:
@@ -163,20 +167,20 @@ class DataStruct:
         return value
 
     @classmethod
-    def unpack(
+    def _unpack(
         cls: Type["DS"],
         io: IO[bytes],
         parent: Optional[Context] = None,
-    ) -> "DS":
+    ) -> Generator[str, None, "DS"]:
         fields = cls.classfields()
         values = {}
         ctx = build_context(parent, io, packing=False, unpacking=True)
 
         for field, meta in fields:
+            yield field.name
             # validate fields since they weren't validated before
             field_validate(field, meta)
             # print(f"Unpacking field '{cls.__name__}.{field.name}'")
-            suffix = f"while unpacking '{cls.__name__}.{field.name}'"
 
             if meta.ftype == FieldType.SEEK:
                 field_do_seek(ctx, meta)
@@ -185,7 +189,7 @@ class DataStruct:
                 length = evaluate(ctx, meta.length)
                 padding = meta.pattern * length
                 if io.read(length) != padding:
-                    raise ValueError(f"Invalid padding found {suffix}")
+                    raise ValueError(f"Invalid padding found")
                 continue
 
             if meta.ftype != FieldType.REPEAT:
@@ -200,15 +204,16 @@ class DataStruct:
 
             i = 0
             count = evaluate(ctx, meta.count)
-            base_meta = field_get_meta(meta.base)
+            base_field, base_meta = field_get_base(meta)
             items = []
 
             while count is None or i < count:
+                yield f"{field.name}[{i}]"
                 ctx.i = i
                 if meta.when and not evaluate(ctx, meta.when):
                     break
 
-                item = cls._read(ctx, base_meta, meta.base.type)
+                item = cls._read(ctx, base_meta, base_field.type)
                 items.append(item)
                 values[field.name] = items
                 ctx[field.name] = items
@@ -221,9 +226,43 @@ class DataStruct:
                     break
                 i += 1
             ctx.pop("i", None)
-
+        yield "<constructor>"
         # noinspection PyArgumentList
         return cls(**values)
+
+    def pack(
+        self,
+        io: IO[bytes],
+        parent: Optional["Context"] = None,
+    ) -> None:
+        cls = type(self)
+        suffix = ""
+        try:
+            for name in self._pack(io, parent):
+                suffix = f"{cls.__name__}.{name}" if name else cls.__name__
+        except EXCEPTIONS as e:
+            suffix = f"; while packing '{suffix}'" if suffix else ""
+            e.args = (e.args[0] + suffix,)
+            raise e
+
+    @classmethod
+    def unpack(
+        cls: Type["DS"],
+        io: IO[bytes],
+        parent: Optional[Context] = None,
+    ) -> "DS":
+        suffix = ""
+        try:
+            gen = cls._unpack(io, parent)
+            while True:
+                name = next(gen)
+                suffix = f"{cls.__name__}.{name}" if name else cls.__name__
+        except StopIteration as e:
+            return e.value
+        except EXCEPTIONS as e:
+            suffix = f"; while unpacking '{suffix}'" if suffix else ""
+            e.args = (e.args[0] + suffix,)
+            raise e
 
     def fields(self) -> List[Tuple[Field, FieldMeta, Any]]:
         return [
