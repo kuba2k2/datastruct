@@ -2,7 +2,7 @@
 
 from dataclasses import Field
 from enum import Enum, auto
-from typing import IO, Any, Callable, Optional, TypeVar, Union
+from typing import IO, Any, Callable, TypeVar, Union
 
 
 class Container(dict):
@@ -36,6 +36,7 @@ T = TypeVar("T")
 V = TypeVar("V")
 Eval = Callable[[Context], V]
 Value = Union[Eval[V], V]
+FormatType = Value[Union[str, int]]
 
 
 class FieldType(Enum):
@@ -51,7 +52,7 @@ class FieldMeta(Container):
     public: bool
     ftype: FieldType
     # FIELD
-    fmt: Optional[Value[str]]
+    fmt: FormatType
     builder: Value[Any]
     always: bool
     # SEEK
@@ -65,9 +66,9 @@ class FieldMeta(Container):
     check: bool
     # REPEAT
     base: Field
-    count: Optional[Value[int]]
-    when: Optional[Eval[bool]]
-    last: Optional[Eval[bool]]
+    count: Value[int]
+    when: Eval[bool]
+    last: Eval[bool]
     # COND
     condition: Value[bool]
     if_not: Value[Any]

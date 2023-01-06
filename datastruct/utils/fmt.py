@@ -1,6 +1,8 @@
 #  Copyright (c) Kuba Szczodrzyński 2023-1-3.
 
-from ..types import Context, Endianness, Value
+from typing import Union
+
+from ..types import Context, Endianness, FormatType, Value
 from .const import FMT_ENDIAN, FMT_SPEC
 from .context import evaluate
 
@@ -23,7 +25,11 @@ def fmt_check(fmt: Value[str]) -> None:
         raise ValueError(f"Format specifier '{orig_fmt}' has non-numeric count")
 
 
-def fmt_evaluate(ctx: Context, fmt_val: Value[str], endianness: Endianness) -> str:
+def fmt_evaluate(
+    ctx: Context,
+    fmt_val: FormatType,
+    endianness: Endianness,
+) -> Union[str, int]:
     """
     First evaluate(), then fmt_check() the given format (if it's a lambda).
     Set endianness if not set already.
@@ -31,6 +37,8 @@ def fmt_evaluate(ctx: Context, fmt_val: Value[str], endianness: Endianness) -> s
     :return: a valid format specifier, with endianness applied
     """
     fmt = evaluate(ctx, fmt_val)
+    if isinstance(fmt, int):
+        return fmt
     if callable(fmt_val):
         fmt_check(fmt)
     if fmt[0] not in FMT_ENDIAN:

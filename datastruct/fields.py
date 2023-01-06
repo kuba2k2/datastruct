@@ -4,16 +4,11 @@ from dataclasses import MISSING
 from io import SEEK_CUR, SEEK_SET
 from typing import Any
 
-from .types import Eval, FieldType, T, Value
+from .types import Eval, FieldType, FormatType, T, Value
 from .utils.fields import build_field, build_wrapper
 
 
-def field(
-    fmt: Value[str],
-    *,
-    default=...,
-    default_factory=MISSING,
-):
+def field(fmt: FormatType, *, default=..., default_factory=MISSING):
     return build_field(
         ftype=FieldType.FIELD,
         default=default,
@@ -23,11 +18,8 @@ def field(
     )
 
 
-def subfield(
-    *,
+def subfield(*, default_factory=MISSING):
     # don't allow 'default' for subfields, as they're always mutable
-    default_factory=MISSING,
-):
     return build_field(
         ftype=FieldType.FIELD,
         default_factory=default_factory,
@@ -35,7 +27,7 @@ def subfield(
     )
 
 
-def built(fmt: Value[str], builder: Value[Any], *, always: bool = True):
+def built(fmt: FormatType, builder: Value[Any], *, always: bool = True):
     return build_field(
         ftype=FieldType.FIELD,
         # meta

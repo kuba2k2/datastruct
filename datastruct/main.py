@@ -85,8 +85,13 @@ class DataStruct:
         if isinstance(value, DataStruct):
             value.pack(io=ctx.io, parent=ctx)
             return value
-        # use struct.pack() to write the raw value
+        # evaluate and validate the format
         fmt = fmt_evaluate(ctx, meta.fmt, self.endianness())
+        if isinstance(fmt, int):
+            # assume the field is bytes, write it directly
+            ctx.io.write(value)
+            return value
+        # use struct.pack() to write the raw value
         encoded = field_encode(value)
         ctx.io.write(struct.pack(fmt, encoded))
         return value
@@ -176,8 +181,12 @@ class DataStruct:
         # unpack structures directly
         if issubclass(typ, DataStruct):
             return typ.unpack(io=ctx.io, parent=ctx)
-        # use struct.unpack() to read the raw value
+        # evaluate and validate the format
         fmt = fmt_evaluate(ctx, meta.fmt, cls.endianness())
+        if isinstance(fmt, int):
+            # assume the field is bytes, write it directly
+            return ctx.io.read(fmt)
+        # use struct.unpack() to read the raw value
         length = struct.calcsize(fmt)
         (value,) = struct.unpack(fmt, ctx.io.read(length))
         value = field_decode(value, type)
