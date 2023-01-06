@@ -40,11 +40,14 @@ FormatType = Value[Union[str, int]]
 
 
 class FieldType(Enum):
-    FIELD = auto()
-    SEEK = auto()
-    PADDING = auto()
-    REPEAT = auto()
-    COND = auto()
+    # standard field
+    FIELD = auto()  # field(), subfield(), built()
+    # special fields
+    SEEK = auto()  # seek(), skip()
+    PADDING = auto()  # padding(), align()
+    # wrapper fields
+    REPEAT = auto()  # repeat()
+    COND = auto()  # cond()
 
 
 class FieldMeta(Container):

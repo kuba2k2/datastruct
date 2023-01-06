@@ -4,7 +4,7 @@ import dataclasses
 import struct
 from dataclasses import MISSING, Field, dataclass
 from functools import lru_cache
-from typing import IO, Any, Dict, Generator, List, Optional, Tuple, Type, TypeVar, Union
+from typing import IO, Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 from .types import Config, Context, FieldMeta, FieldType, T
 from .utils.const import ARRAYS, EXCEPTIONS
@@ -78,7 +78,7 @@ class DataStruct:
                     f"no value was passed",
                 )
 
-    def _write(self, ctx: Context, meta: FieldMeta, value: Any) -> Any:
+    def _write_value(self, ctx: Context, meta: FieldMeta, value: Any) -> Any:
         # build fields if necessary
         if meta.builder and (value is Ellipsis or meta.always):
             value = evaluate(ctx, meta.builder)
@@ -97,39 +97,30 @@ class DataStruct:
         ctx.io.write(struct.pack(fmt, encoded))
         return value
 
-    def _pack(
+    def _write_field(
         self,
-        io: IO[bytes],
-        parent: Optional["Context"] = None,
-    ) -> Generator[str, None, None]:
-        fields = self.fields()
-        values = {f.name: v for f, m, v in fields if v != Ellipsis}
-        ctx = build_context(parent, io, packing=True, unpacking=False, **values)
+        ctx: Context,
+        field: Field,
+        meta: FieldMeta,
+        value: Any,
+    ) -> None:
+        if meta.ftype == FieldType.FIELD:
+            value = self._write_value(ctx, meta, value)
+            # update built value in the actual object
+            setattr(self, field.name, value)
+            setattr(ctx, field.name, value)
+            return
 
-        for field, meta, value in fields:
-            yield field.name
-            # print(f"Packing field '{type(self).__name__}.{field.name}'")
+        if meta.ftype == FieldType.SEEK:
+            field_do_seek(ctx, meta)
+            return
 
-            if meta.ftype == FieldType.COND:
-                if evaluate(ctx, meta.condition) is False:
-                    continue
-                field, meta = field_get_base(meta)
+        if meta.ftype == FieldType.PADDING:
+            _, padding, _ = field_get_padding(self.config(), ctx, meta)
+            ctx.io.write(padding)
+            return
 
-            if meta.ftype == FieldType.SEEK:
-                field_do_seek(ctx, meta)
-                continue
-            if meta.ftype == FieldType.PADDING:
-                _, padding, _ = field_get_padding(self.config(), ctx, meta)
-                io.write(padding)
-                continue
-
-            if meta.ftype != FieldType.REPEAT:
-                value = self._write(ctx, meta, value)
-                # update built value in the actual object
-                setattr(self, field.name, value)
-                setattr(ctx, field.name, value)
-                continue
-
+        if meta.ftype == FieldType.REPEAT:
             # repeat() field - value type must be List
             if not isinstance(value, ARRAYS):
                 raise TypeError("Value is not an array")
@@ -149,7 +140,6 @@ class DataStruct:
                 )
 
             while count is None or i < count:
-                yield f"{field.name}[{i}]"
                 ctx.i = i
                 if meta.when and not evaluate(ctx, meta.when):
                     break
@@ -158,7 +148,7 @@ class DataStruct:
                     item = next(items_iter)
                 else:
                     item = Ellipsis
-                item = self._write(ctx, base_meta, item)
+                item = self._write_value(ctx, base_meta, item)
                 if isinstance(items, list):
                     # don't reassign built fields to tuples
                     # only update in lists (which will update the object too)
@@ -175,10 +165,16 @@ class DataStruct:
                     break
                 i += 1
             ctx.pop("i", None)
-        yield None
+            return
+
+        if meta.ftype == FieldType.COND:
+            if evaluate(ctx, meta.condition) is False:
+                return
+            self._write_field(ctx, *field_get_base(meta), value)
+            return
 
     @classmethod
-    def _read(cls, ctx: Context, meta: FieldMeta, typ: Type[T]) -> T:
+    def _read_value(cls, ctx: Context, meta: FieldMeta, typ: Type[T]) -> T:
         # unpack structures directly
         if issubclass(typ, DataStruct):
             return typ.unpack(io=ctx.io, parent=ctx)
@@ -194,45 +190,28 @@ class DataStruct:
         return value
 
     @classmethod
-    def _unpack(
-        cls: Type["DS"],
-        io: IO[bytes],
-        parent: Optional[Context] = None,
-    ) -> Generator[str, None, "DS"]:
-        fields = cls.classfields()
-        values = {}
-        ctx = build_context(parent, io, packing=False, unpacking=True)
+    def _read_field(
+        cls,
+        ctx: Context,
+        field: Field,
+        meta: FieldMeta,
+    ) -> Any:
+        if meta.ftype == FieldType.FIELD:
+            value = cls._read_value(ctx, meta, field.type)
+            ctx[field.name] = value
+            return value
 
-        for field, meta in fields:
-            yield field.name
-            # validate fields since they weren't validated before
-            field_validate(field, meta)
-            # print(f"Unpacking field '{cls.__name__}.{field.name}'")
+        if meta.ftype == FieldType.SEEK:
+            field_do_seek(ctx, meta)
+            return Ellipsis
 
-            if meta.ftype == FieldType.COND:
-                if evaluate(ctx, meta.condition) is False:
-                    if meta.if_not is not Ellipsis:
-                        value = evaluate(ctx, meta.if_not)
-                        ctx[field.name] = value
-                        values[field.name] = value
-                    continue
-                field, meta = field_get_base(meta)
+        if meta.ftype == FieldType.PADDING:
+            length, padding, check = field_get_padding(cls.config(), ctx, meta)
+            if ctx.io.read(length) != padding and check:
+                raise ValueError(f"Invalid padding found")
+            return Ellipsis
 
-            if meta.ftype == FieldType.SEEK:
-                field_do_seek(ctx, meta)
-                continue
-            if meta.ftype == FieldType.PADDING:
-                length, padding, check = field_get_padding(cls.config(), ctx, meta)
-                if io.read(length) != padding and check:
-                    raise ValueError(f"Invalid padding found")
-                continue
-
-            if meta.ftype != FieldType.REPEAT:
-                value = cls._read(ctx, meta, field.type)
-                ctx[field.name] = value
-                values[field.name] = value
-                continue
-
+        if meta.ftype == FieldType.REPEAT:
             # repeat() field - value type must be List
             if not issubclass(field.type, ARRAYS):
                 raise TypeError("Field type is not an array")
@@ -241,17 +220,15 @@ class DataStruct:
             count = evaluate(ctx, meta.count)
             base_field, base_meta = field_get_base(meta)
             items = []
+            ctx[field.name] = items
 
             while count is None or i < count:
-                yield f"{field.name}[{i}]"
                 ctx.i = i
                 if meta.when and not evaluate(ctx, meta.when):
                     break
 
-                item = cls._read(ctx, base_meta, base_field.type)
+                item = cls._read_value(ctx, base_meta, base_field.type)
                 items.append(item)
-                values[field.name] = items
-                ctx[field.name] = items
 
                 # provide another value 'item' to context lambdas in 'last'
                 ctx.item = item
@@ -261,22 +238,33 @@ class DataStruct:
                     break
                 i += 1
             ctx.pop("i", None)
-        yield "<constructor>"
-        # noinspection PyArgumentList
-        return cls(**values)
+            return items
+
+        if meta.ftype == FieldType.COND:
+            if evaluate(ctx, meta.condition) is False:
+                if meta.if_not is not Ellipsis:
+                    value = evaluate(ctx, meta.if_not)
+                    ctx[field.name] = value
+                    return value
+                return Ellipsis
+            return cls._read_field(ctx, *field_get_base(meta))
 
     def pack(
         self,
         io: IO[bytes],
         parent: Optional["Context"] = None,
     ) -> None:
-        cls = type(self)
-        suffix = ""
+        fields = self.fields()
+        values = {f.name: v for f, m, v in fields if v != Ellipsis}
+        ctx = build_context(parent, io, packing=True, unpacking=False, **values)
+        field_name = type(self).__name__
         try:
-            for name in self._pack(io, parent):
-                suffix = f"{cls.__name__}.{name}" if name else cls.__name__
+            for field, meta, value in fields:
+                field_name = f"{type(self).__name__}.{field.name}"
+                # print(f"Packing {meta.ftype.name} '{field_name}'")
+                self._write_field(ctx, field, meta, value)
         except EXCEPTIONS as e:
-            suffix = f"; while packing '{suffix}'" if suffix else ""
+            suffix = f"; while packing '{field_name}'"
             e.args = (e.args[0] + suffix,)
             raise e
 
@@ -286,16 +274,24 @@ class DataStruct:
         io: IO[bytes],
         parent: Optional[Context] = None,
     ) -> "DS":
-        suffix = ""
+        fields = cls.classfields()
+        values = {}
+        ctx = build_context(parent, io, packing=False, unpacking=True)
+        field_name = cls.__name__
         try:
-            gen = cls._unpack(io, parent)
-            while True:
-                name = next(gen)
-                suffix = f"{cls.__name__}.{name}" if name else cls.__name__
-        except StopIteration as e:
-            return e.value
+            for field, meta in fields:
+                field_name = f"{cls.__name__}.{field.name}"
+                # print(f"Unpacking {meta.ftype.name} '{field_name}'")
+                # validate fields since they weren't validated before
+                field_validate(field, meta)
+                value = cls._read_field(ctx, field, meta)
+                if value is not Ellipsis:
+                    values[field.name] = value
+            field_name = f"{cls.__name__}()"
+            # noinspection PyArgumentList
+            return cls(**values)
         except EXCEPTIONS as e:
-            suffix = f"; while unpacking '{suffix}'" if suffix else ""
+            suffix = f"; while unpacking '{field_name}'"
             e.args = (e.args[0] + suffix,)
             raise e
 

@@ -39,6 +39,8 @@ def fmt_evaluate(
     fmt = evaluate(ctx, fmt_val)
     if isinstance(fmt, int):
         return fmt
+    if not fmt:
+        raise ValueError("Field has no format specifier")
     if callable(fmt_val):
         fmt_check(fmt)
     if fmt[0] not in FMT_ENDIAN:

@@ -84,14 +84,16 @@ def field_decode(v: Any, cls: type) -> Any:
 
 
 def field_get_type(field: Field) -> Tuple[type, Optional[type]]:
-    ftype = field.type
-    if ftype is Ellipsis:
-        return ftype, None
-    if hasattr(ftype, "__origin__"):
-        ftype = field.type.__origin__
-    if issubclass(ftype, ARRAYS) and hasattr(field.type, "__args__"):
-        return ftype, field.type.__args__[0]
-    return ftype, None
+    field_type = field.type
+    if field_type is Ellipsis:
+        return field_type, None
+    if hasattr(field_type, "__origin__"):
+        field_type = field.type.__origin__
+    if not isinstance(field_type, type):
+        return field_type, None
+    if issubclass(field_type, ARRAYS) and hasattr(field.type, "__args__"):
+        return field_type, field.type.__args__[0]
+    return field_type, None
 
 
 def field_get_meta(field: Field) -> FieldMeta:
