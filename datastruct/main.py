@@ -214,7 +214,7 @@ class DataStruct:
             if meta.ftype == FieldType.PADDING:
                 length = evaluate(ctx, meta.length)
                 padding = meta.pattern * length
-                if io.read(length) != padding:
+                if io.read(length) != padding and meta.check:
                     raise ValueError(f"Invalid padding found")
                 continue
 
