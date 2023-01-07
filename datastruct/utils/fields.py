@@ -137,6 +137,50 @@ def field_get_padding(
     return length, repstr(pattern, length), check
 
 
+def field_get_default(field: Field, meta: FieldMeta, ds: type) -> Any:
+    if meta.ftype == FieldType.FIELD:
+        if meta.builder:
+            return Ellipsis
+        # do what @dataclass would normally do - this is needed
+        # for wrapper fields that are not REPEAT
+        if field.default is not Ellipsis:
+            return field.default
+        if field.default_factory is not MISSING:
+            return field.default_factory()
+        if issubclass(field.type, ds):
+            # try to initialize single fields with an empty object
+            # noinspection PyArgumentList
+            return field.type()
+        return None
+
+    # create lists for repeat() fields
+    if meta.ftype == FieldType.REPEAT:
+        # no need to care about 'default_factory' of 'field' here,
+        # because @dataclass already sets that default value
+        if isinstance(meta.count, int):
+            # (try to) build a list of default/empty items
+            items = []
+            for _ in range(meta.count):
+                if meta.base.default_factory is not MISSING:
+                    items.append(meta.base.default_factory())
+                elif meta.base.default is not Ellipsis:
+                    items.append(meta.base.default)
+                else:
+                    items.append(meta.base.type())
+            return field.type(items)
+        else:
+            # build an empty list for variable-length subfields
+            # (when 'count' can't be determined at init-time)
+            return []
+
+    # extract single-field wrappers
+    if meta.ftype == FieldType.COND:
+        field, meta = field_get_base(meta)
+        return field_get_default(field, meta, ds)
+
+    return None
+
+
 def field_validate(field: Field, meta: FieldMeta) -> None:
     if meta.validated:
         return

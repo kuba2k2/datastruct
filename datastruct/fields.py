@@ -71,7 +71,7 @@ def padding(length: Value[int], *, pattern: bytes = None, check: bool = None):
 
 def align(
     modulus: Value[int],
-    absolute: bool,
+    absolute: bool = False,
     *,
     pattern: bytes = None,
     check: bool = False,
@@ -99,6 +99,7 @@ def repeat(
 
     return build_wrapper(
         ftype=FieldType.REPEAT,
+        default=...,
         default_factory=default_factory,
         # meta
         count=count,

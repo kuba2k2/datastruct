@@ -2,7 +2,7 @@
 
 import dataclasses
 import struct
-from dataclasses import MISSING, Field, dataclass
+from dataclasses import Field, dataclass
 from functools import lru_cache
 from typing import IO, Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
@@ -14,6 +14,7 @@ from .utils.fields import (
     field_do_seek,
     field_encode,
     field_get_base,
+    field_get_default,
     field_get_meta,
     field_get_padding,
     field_validate,
@@ -28,55 +29,22 @@ class DataStruct:
         for field, meta, value in self.fields():
             field_validate(field, meta)
 
-            # accept fields already having a value
-            if value != Ellipsis:
+            # accept special fields and those already having a value
+            if value != Ellipsis or not meta.public:
                 continue
 
-            # extract some wrapper fields
-            if meta.ftype == FieldType.COND:
-                field, meta = field_get_base(meta)
-
-            # create lists for repeat() fields
-            if meta.ftype == FieldType.REPEAT:
-                # no need to care about 'default_factory' of 'field' here,
-                # because @dataclass already sets that default value
-                if isinstance(meta.count, int):
-                    # (try to) build a list of default/empty items
-                    items = []
-                    for _ in range(meta.count):
-                        if meta.base.default_factory is not MISSING:
-                            items.append(meta.base.default_factory())
-                        elif meta.base.default is not Ellipsis:
-                            items.append(meta.base.default)
-                        else:
-                            items.append(meta.base.type())
-                    # noinspection PyArgumentList
-                    self.__setattr__(field.name, field.type(items))
-                else:
-                    # build an empty list for variable-length subfields
-                    # (when 'count' can't be determined at init-time)
-                    self.__setattr__(field.name, [])
+            default = field_get_default(field, meta, DataStruct)
+            if default is not None:
+                # print("Got default for", field.name, default)
+                self.__setattr__(field.name, default)
                 continue
 
-            if meta.ftype == FieldType.FIELD and not meta.builder:
-                if field.default is not Ellipsis:
-                    # do what @dataclass would normally do - this is needed
-                    # for wrapper fields that are not REPEAT
-                    self.__setattr__(field.name, field.default)
-                    continue
-                if field.default_factory is not MISSING:
-                    self.__setattr__(field.name, field.default_factory())
-                    continue
-                if issubclass(field.type, DataStruct):
-                    # try to initialize single fields with an empty object
-                    self.__setattr__(field.name, field.type())
-                    continue
-                # forbid creating an instance of fields with no default
-                raise ValueError(
-                    f"Cannot create an instance of {type(self)}: "
-                    f"field '{field.name}' has no default and "
-                    f"no value was passed",
-                )
+            # forbid creating an instance of fields with no default
+            raise ValueError(
+                f"Cannot create an instance of {type(self)}: "
+                f"field '{field.name}' has no default and "
+                f"no value was passed, nor can it be built",
+            )
 
     def _write_value(self, ctx: Context, meta: FieldMeta, value: Any) -> Any:
         # build fields if necessary
@@ -123,7 +91,7 @@ class DataStruct:
         if meta.ftype == FieldType.REPEAT:
             # repeat() field - value type must be List
             if not isinstance(value, ARRAYS):
-                raise TypeError("Value is not an array")
+                raise TypeError(f"Value is not an array: {value}")
             items: Union[list, tuple] = value
 
             i = 0
