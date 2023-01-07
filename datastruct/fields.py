@@ -4,6 +4,7 @@ from dataclasses import MISSING, Field
 from io import SEEK_CUR, SEEK_SET
 from typing import Any, Dict, Tuple, Type
 
+from .context import Context
 from .types import Adapter, AdapterType, Eval, FieldType, FormatType, T, Value
 from .utils.context import evaluate
 from .utils.fields import build_field, build_wrapper, field_get_meta
@@ -88,6 +89,15 @@ def align(
     )
 
 
+def action(_action: Eval[Any], /):
+    return build_field(
+        ftype=FieldType.ACTION,
+        public=False,
+        # meta
+        action=_action,
+    )
+
+
 def repeat(
     count: Value[int] = None,
     *,
@@ -169,3 +179,20 @@ def virtual(value: Value[T]):
         encode=lambda v, ctx: b"",
         decode=lambda v, ctx: evaluate(ctx, value),
     )(built(0, builder=value, always=True))
+
+
+def probe():
+    def _probe(ctx: Context):
+        print(f"Probe: {ctx}")
+
+    return action(_probe)
+
+
+def validate(check: Eval[bool], doc: str = None):
+    def _validate(ctx: Context):
+        if not check(ctx):
+            if not doc:
+                raise ValueError(f"Validation failed; ctx={ctx}")
+            raise ValueError(f"Validation failed at '{doc}'; ctx={ctx}")
+
+    return action(_validate)

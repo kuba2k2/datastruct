@@ -24,11 +24,12 @@ class Adapter:
 
 
 class FieldType(Enum):
-    # standard field
-    FIELD = auto()  # field(), subfield(), built(), adapter(), virtual()
+    # standard fields
+    FIELD = auto()  # field(), subfield(), built(), adapter()
     # special fields
     SEEK = auto()  # seek(), skip()
     PADDING = auto()  # padding(), align()
+    ACTION = auto()  # action()
     # wrapper fields
     REPEAT = auto()  # repeat()
     COND = auto()  # cond()
@@ -53,6 +54,8 @@ class FieldMeta(Container):
     modulus: Value[int]
     pattern: bytes
     check: bool
+    # ACTION
+    action: Eval[Any]
     # REPEAT
     base: Field
     count: Value[int]

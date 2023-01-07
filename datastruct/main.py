@@ -92,6 +92,9 @@ class DataStruct:
             ctx.G.io.write(padding)
             return Ellipsis
 
+        if meta.ftype == FieldType.ACTION:
+            return evaluate(ctx, meta.action)
+
         if meta.ftype == FieldType.REPEAT:
             # repeat() field - value type must be List
             if not isinstance(value, ARRAYS):
@@ -196,6 +199,9 @@ class DataStruct:
                 raise ValueError(f"Invalid padding found")
             return Ellipsis
 
+        if meta.ftype == FieldType.ACTION:
+            return evaluate(ctx, meta.action)
+
         if meta.ftype == FieldType.REPEAT:
             # repeat() field - value type must be List
             if not issubclass(field.type, ARRAYS):
@@ -259,9 +265,8 @@ class DataStruct:
                 field_name = f"{type(self).__name__}.{field.name}"
                 # print(f"Packing {meta.ftype.name} '{field_name}'")
                 value = self._write_field(ctx, field, meta, value)
-                # update built value in the actual object
-                if value is not Ellipsis:
-                    ctx[field.name] = value
+                ctx[field.name] = value
+                if value is not Ellipsis and meta.public:
                     setattr(self, field.name, value)
         except EXCEPTIONS as e:
             suffix = f"; while packing '{field_name}'"
@@ -291,8 +296,8 @@ class DataStruct:
                 # validate fields since they weren't validated before
                 field_validate(field, meta)
                 value = cls._read_field(ctx, field, meta)
-                if value is not Ellipsis:
-                    ctx[field.name] = value
+                ctx[field.name] = value
+                if value is not Ellipsis and meta.public:
                     values[field.name] = value
             field_name = f"{cls.__name__}()"
             # noinspection PyArgumentList
