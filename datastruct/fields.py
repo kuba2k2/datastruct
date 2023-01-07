@@ -1,11 +1,21 @@
 #  Copyright (c) Kuba Szczodrzyński 2023-1-3.
 
 from dataclasses import MISSING, Field
-from io import SEEK_CUR, SEEK_SET
-from typing import Any, Dict, Tuple, Type
+from io import SEEK_CUR, SEEK_SET, BytesIO
+from typing import Any, Callable, Dict, Optional, Tuple, Type
 
 from .context import Context
-from .types import Adapter, AdapterType, Eval, FieldType, FormatType, T, Value
+from .types import (
+    Adapter,
+    AdapterType,
+    Eval,
+    FieldType,
+    FormatType,
+    Hook,
+    HookType,
+    T,
+    Value,
+)
 from .utils.context import evaluate
 from .utils.fields import build_field, build_wrapper, field_get_meta
 
@@ -96,6 +106,37 @@ def action(_action: Eval[Any], /):
         # meta
         action=_action,
     )
+
+
+def hook(
+    _hook: Hook = None,
+    /,
+    *,
+    init: Eval[None] = None,
+    update: HookType = None,
+    read: HookType = None,
+    write: HookType = None,
+    end: Eval[None] = None,
+):
+    if [_hook, init or update or read or write or end].count(None) != 1:
+        raise ValueError("Either 'hook' or at least one inline lambda has to be set")
+    if not _hook:
+        _hook = Hook()
+        _hook.init = init
+        _hook.update = update
+        _hook.read = read
+        _hook.write = write
+        _hook.end = end
+    return build_field(
+        ftype=FieldType.HOOK,
+        public=False,
+        # meta
+        hook=_hook,
+    )
+
+
+def hook_end():
+    return build_field(FieldType.HOOK, public=False, hook=None)
 
 
 def repeat(
@@ -196,3 +237,20 @@ def validate(check: Eval[bool], doc: str = None):
             raise ValueError(f"Validation failed at '{doc}'; ctx={ctx}")
 
     return action(_validate)
+
+
+def buffer_hook(end: Callable[[BytesIO, Context], None]):
+    class Buffer(Hook):
+        io: BytesIO
+
+        def init(self, ctx: Context) -> None:
+            self.io = BytesIO()
+
+        def update(self, value: bytes, ctx: Context) -> Optional[bytes]:
+            self.io.write(value)
+            return value
+
+        def end(self, ctx: Context) -> None:
+            end(self.io, ctx)
+
+    return hook(Buffer())

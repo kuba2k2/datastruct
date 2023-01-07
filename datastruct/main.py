@@ -9,7 +9,14 @@ from typing import IO, Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
 from .context import Context
 from .types import Config, FieldMeta, FieldType, T
 from .utils.const import ARRAYS, EXCEPTIONS
-from .utils.context import build_context, build_global_context, evaluate
+from .utils.context import (
+    build_context,
+    build_global_context,
+    ctx_read,
+    ctx_write,
+    evaluate,
+    hook_start,
+)
 from .utils.fields import (
     field_decode,
     field_do_seek,
@@ -59,10 +66,10 @@ class DataStruct:
             if len(value) < fmt:
                 raise ValueError(f"Not enough bytes to write: {len(value)} < {fmt}")
             # assume the field is bytes, write it directly
-            ctx.G.io.write(value[:fmt])
+            ctx_write(ctx, value[:fmt])
             return
         # use struct.pack() to write the raw value
-        ctx.G.io.write(struct.pack(fmt, value))
+        ctx_write(ctx, struct.pack(fmt, value))
 
     def _write_field(
         self,
@@ -89,11 +96,15 @@ class DataStruct:
 
         if meta.ftype == FieldType.PADDING:
             _, padding, _ = field_get_padding(self.config(), ctx, meta)
-            ctx.G.io.write(padding)
+            ctx_write(ctx, padding)
             return Ellipsis
 
         if meta.ftype == FieldType.ACTION:
             return evaluate(ctx, meta.action)
+
+        if meta.ftype == FieldType.HOOK:
+            hook_start(ctx, meta.hook)
+            return Ellipsis
 
         if meta.ftype == FieldType.REPEAT:
             # repeat() field - value type must be List
@@ -164,13 +175,13 @@ class DataStruct:
         fmt = fmt_evaluate(ctx, meta.fmt, cls.config().endianness)
         if isinstance(fmt, int):
             # assume the field is bytes, write it directly
-            value = ctx.G.io.read(fmt)
+            value = ctx_read(ctx, fmt)
             if len(value) < fmt:
                 raise ValueError(f"Not enough bytes to read: {len(value)} < {fmt}")
             return value
         # use struct.unpack() to read the raw value
         length = struct.calcsize(fmt)
-        (value,) = struct.unpack(fmt, ctx.G.io.read(length))
+        (value,) = struct.unpack(fmt, ctx_read(ctx, length))
         return value
 
     @classmethod
@@ -195,12 +206,16 @@ class DataStruct:
 
         if meta.ftype == FieldType.PADDING:
             length, padding, check = field_get_padding(cls.config(), ctx, meta)
-            if ctx.G.io.read(length) != padding and check:
+            if ctx_read(ctx, length) != padding and check:
                 raise ValueError(f"Invalid padding found")
             return Ellipsis
 
         if meta.ftype == FieldType.ACTION:
             return evaluate(ctx, meta.action)
+
+        if meta.ftype == FieldType.HOOK:
+            hook_start(ctx, meta.hook)
+            return Ellipsis
 
         if meta.ftype == FieldType.REPEAT:
             # repeat() field - value type must be List

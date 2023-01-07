@@ -24,6 +24,7 @@ class Context(Container):
         unpacking: bool
         env: Container
         root: Optional["Context"]
+        hooks: list
         tell: Callable[[], int]
         seek: Union[Callable[[int], int], Callable[[int, int], int]]
 

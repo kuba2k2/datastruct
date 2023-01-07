@@ -2,7 +2,7 @@
 
 from dataclasses import Field
 from enum import Enum, auto
-from typing import Any, Callable, Dict, Tuple, Type, TypeVar, Union
+from typing import Any, Callable, Dict, Optional, Tuple, Type, TypeVar, Union
 
 from .context import Container, Context
 
@@ -13,14 +13,24 @@ Eval = Callable[[Context], V]
 Value = Union[Eval[V], V]
 FormatType = Value[Union[str, int]]
 AdapterType = Callable[[Any, Context], Any]
+HookType = Callable[[bytes, Context], Optional[bytes]]
 
 
 class Adapter:
-    def encode(self, value: Any, ctx: Context) -> Any:
-        ...
+    # fmt: off
+    def encode(self, value: Any, ctx: Context) -> Any: ...
+    def decode(self, value: Any, ctx: Context) -> Any: ...
+    # fmt: on
 
-    def decode(self, value: Any, ctx: Context) -> Any:
-        ...
+
+class Hook:
+    # fmt: off
+    def init(self, ctx: Context) -> None: ...
+    def update(self, value: bytes, ctx: Context) -> Optional[bytes]: ...
+    def read(self, value: bytes, ctx: Context) -> Optional[bytes]: ...
+    def write(self, value: bytes, ctx: Context) -> Optional[bytes]: ...
+    def end(self, ctx: Context) -> None: ...
+    # fmt: on
 
 
 class FieldType(Enum):
@@ -30,6 +40,7 @@ class FieldType(Enum):
     SEEK = auto()  # seek(), skip()
     PADDING = auto()  # padding(), align()
     ACTION = auto()  # action()
+    HOOK = auto()  # hook()
     # wrapper fields
     REPEAT = auto()  # repeat()
     COND = auto()  # cond()
@@ -56,6 +67,8 @@ class FieldMeta(Container):
     check: bool
     # ACTION
     action: Eval[Any]
+    # HOOK
+    hook: Hook
     # REPEAT
     base: Field
     count: Value[int]

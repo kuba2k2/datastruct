@@ -4,7 +4,7 @@ from io import SEEK_CUR, SEEK_SET
 from typing import IO
 
 from ..context import Container, Context
-from ..types import V, Value
+from ..types import Hook, V, Value
 
 
 def evaluate(ctx: Context, v: Value[V]) -> V:
@@ -28,6 +28,7 @@ def build_global_context(
         unpacking=unpacking,
         env=Container(env),
         root=None,
+        hooks=[],
         # tell the current position, relative to IO start
         tell=lambda: io.tell(),
         # seek to a position, relative to IO start
@@ -53,3 +54,42 @@ def build_context(glob: Context.Global, parent: Context, **values) -> Context:
     if glob.root is None:
         glob.root = ctx
     return ctx
+
+
+def ctx_read(ctx: Context, n: int) -> bytes:
+    if not n:
+        return b""
+    s = ctx.G.io.read(n)
+    s = hook_do(ctx, "update", s)
+    s = hook_do(ctx, "read", s)
+    return s
+
+
+def ctx_write(ctx: Context, s: bytes) -> int:
+    if not s:
+        return 0
+    s = hook_do(ctx, "update", s)
+    s = hook_do(ctx, "write", s)
+    n = ctx.G.io.write(s)
+    return n
+
+
+def hook_start(ctx: Context, hook: Hook):
+    if hook is not None:
+        evaluate(ctx, hook.init)
+        ctx.G.hooks.append(hook)
+    else:
+        hook: Hook = ctx.G.hooks.pop(-1)
+        evaluate(ctx, hook.end)
+
+
+def hook_do(ctx: Context, action: str, data: V) -> V:
+    for hook in ctx.G.hooks:
+        func = getattr(hook, action, None)
+        if not func:
+            continue
+        value = func(data, ctx)
+        if value is None:
+            continue
+        data = value
+    return data
