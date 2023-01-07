@@ -6,9 +6,10 @@ from dataclasses import Field, dataclass
 from functools import lru_cache
 from typing import IO, Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
-from .types import Config, Context, FieldMeta, FieldType, T
+from .context import Context
+from .types import Config, FieldMeta, FieldType, T
 from .utils.const import ARRAYS, EXCEPTIONS
-from .utils.context import build_context, evaluate
+from .utils.context import build_context, build_global_context, evaluate
 from .utils.fields import (
     field_decode,
     field_do_seek,
@@ -50,7 +51,7 @@ class DataStruct:
     def _write_value(self, ctx: Context, meta: FieldMeta, value: Any) -> None:
         # pack structures directly
         if isinstance(value, DataStruct):
-            value.pack(io=ctx.io, parent=ctx)
+            value.pack(io=ctx.G.io, parent=ctx)
             return
         # evaluate and validate the format
         fmt = fmt_evaluate(ctx, meta.fmt, self.config().endianness)
@@ -58,10 +59,10 @@ class DataStruct:
             if len(value) < fmt:
                 raise ValueError(f"Not enough bytes to write: {len(value)} < {fmt}")
             # assume the field is bytes, write it directly
-            ctx.io.write(value[:fmt])
+            ctx.G.io.write(value[:fmt])
             return
         # use struct.pack() to write the raw value
-        ctx.io.write(struct.pack(fmt, value))
+        ctx.G.io.write(struct.pack(fmt, value))
 
     def _write_field(
         self,
@@ -88,7 +89,7 @@ class DataStruct:
 
         if meta.ftype == FieldType.PADDING:
             _, padding, _ = field_get_padding(self.config(), ctx, meta)
-            ctx.io.write(padding)
+            ctx.G.io.write(padding)
             return Ellipsis
 
         if meta.ftype == FieldType.REPEAT:
@@ -111,8 +112,8 @@ class DataStruct:
                 )
 
             while count is None or i < count:
-                ctx.i = i
-                if meta.when and not evaluate(ctx, meta.when):
+                ctx.P.i = i
+                if evaluate(ctx, meta.when) is False:
                     break
 
                 if not base_meta.builder:
@@ -129,13 +130,13 @@ class DataStruct:
                         items[i] = item
 
                 # provide another value 'item' to context lambdas in 'last'
-                ctx.item = item
+                ctx.P.item = item
                 last = evaluate(ctx, meta.last)
-                ctx.pop("item")
-                if last:
+                ctx.P.pop("item")
+                if last is True:
                     break
                 i += 1
-            ctx.pop("i", None)
+            ctx.P.pop("i", None)
             return items
 
         if meta.ftype == FieldType.COND:
@@ -155,18 +156,18 @@ class DataStruct:
     def _read_value(cls, ctx: Context, meta: FieldMeta, typ: Type[T]) -> T:
         # unpack structures directly
         if issubclass(typ, DataStruct):
-            return typ.unpack(io=ctx.io, parent=ctx)
+            return typ.unpack(io=ctx.G.io, parent=ctx)
         # evaluate and validate the format
         fmt = fmt_evaluate(ctx, meta.fmt, cls.config().endianness)
         if isinstance(fmt, int):
             # assume the field is bytes, write it directly
-            value = ctx.io.read(fmt)
+            value = ctx.G.io.read(fmt)
             if len(value) < fmt:
                 raise ValueError(f"Not enough bytes to read: {len(value)} < {fmt}")
             return value
         # use struct.unpack() to read the raw value
         length = struct.calcsize(fmt)
-        (value,) = struct.unpack(fmt, ctx.io.read(length))
+        (value,) = struct.unpack(fmt, ctx.G.io.read(length))
         return value
 
     @classmethod
@@ -191,7 +192,7 @@ class DataStruct:
 
         if meta.ftype == FieldType.PADDING:
             length, padding, check = field_get_padding(cls.config(), ctx, meta)
-            if ctx.io.read(length) != padding and check:
+            if ctx.G.io.read(length) != padding and check:
                 raise ValueError(f"Invalid padding found")
             return Ellipsis
 
@@ -207,21 +208,21 @@ class DataStruct:
             ctx[field.name] = items
 
             while count is None or i < count:
-                ctx.i = i
-                if meta.when and not evaluate(ctx, meta.when):
+                ctx.P.i = i
+                if evaluate(ctx, meta.when) is False:
                     break
 
                 item = cls._read_value(ctx, base_meta, base_field.type)
                 items.append(item)
 
                 # provide another value 'item' to context lambdas in 'last'
-                ctx.item = item
+                ctx.P.item = item
                 last = evaluate(ctx, meta.last)
-                ctx.pop("item")
-                if last:
+                ctx.P.pop("item")
+                if last is True:
                     break
                 i += 1
-            ctx.pop("i", None)
+            ctx.P.pop("i", None)
             return items
 
         if meta.ftype == FieldType.COND:
@@ -242,10 +243,16 @@ class DataStruct:
         self,
         io: IO[bytes],
         parent: Optional["Context"] = None,
+        **kwargs,
     ) -> None:
+        if parent:
+            glob = parent.G
+        else:
+            glob = build_global_context(io, env=kwargs, packing=True)
+
         fields = self.fields()
         values = {f.name: v for f, m, v in fields if v != Ellipsis}
-        ctx = build_context(parent, io, packing=True, unpacking=False, **values)
+        ctx = build_context(glob, parent, **values)
         field_name = type(self).__name__
         try:
             for field, meta, value in fields:
@@ -266,10 +273,16 @@ class DataStruct:
         cls: Type["DS"],
         io: IO[bytes],
         parent: Optional[Context] = None,
+        **kwargs,
     ) -> "DS":
+        if parent:
+            glob = parent.G
+        else:
+            glob = build_global_context(io, env=kwargs, unpacking=True)
+
         fields = cls.classfields()
         values = {}
-        ctx = build_context(parent, io, packing=False, unpacking=True)
+        ctx = build_context(glob, parent)
         field_name = cls.__name__
         try:
             for field, meta in fields:

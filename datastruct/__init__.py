@@ -1,8 +1,9 @@
 #  Copyright (c) Kuba Szczodrzyński 2023-1-3.
 
+from .context import Context
 from .fields import built, field, padding, seek, skip, subfield
 from .main import DataStruct
-from .types import BIG, DEFAULT, LITTLE, NATIVE, NETWORK, Context, Endianness
+from .types import BIG, DEFAULT, LITTLE, NATIVE, NETWORK, Endianness
 from .utils.public import datastruct, datastruct_config, datastruct_get_config
 
 __all__ = [

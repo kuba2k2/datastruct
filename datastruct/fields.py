@@ -157,11 +157,11 @@ def adapter(
 
 
 def packing(check: Value[T]) -> Eval[T]:
-    return lambda ctx: check(ctx) if ctx.packing else None
+    return lambda ctx: check(ctx) if ctx.G.packing else None
 
 
 def unpacking(check: Value[T]) -> Eval[T]:
-    return lambda ctx: check(ctx) if ctx.unpacking else None
+    return lambda ctx: check(ctx) if ctx.G.unpacking else None
 
 
 def virtual(value: Value[T]):

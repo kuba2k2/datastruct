@@ -2,34 +2,9 @@
 
 from dataclasses import Field
 from enum import Enum, auto
-from typing import IO, Any, Callable, Dict, Tuple, Type, TypeVar, Union
+from typing import Any, Callable, Dict, Tuple, Type, TypeVar, Union
 
-
-class Container(dict):
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.__dict__ = self
-
-    def __getattribute__(self, name: str):
-        try:
-            return super().__getattribute__(name)
-        except AttributeError:
-            return None
-
-
-class Context(Container):
-    _: Any
-    io: IO[bytes]
-    packing: bool
-    unpacking: bool
-    i: int
-    item: Any
-    tell: Callable[[], int]
-    seek: Union[Callable[[int], int], Callable[[int, int], int]]
-    skip: Callable[[int], int]
-    abstell: Callable[[], int]
-    absseek: Union[Callable[[int], int], Callable[[int, int], int]]
-
+from .context import Container, Context
 
 T = TypeVar("T")
 
