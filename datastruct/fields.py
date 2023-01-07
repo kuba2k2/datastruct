@@ -4,8 +4,8 @@ from dataclasses import MISSING, Field
 from io import SEEK_CUR, SEEK_SET
 from typing import Any, Dict, Tuple, Type
 
-from .types import Eval, FieldType, FormatType, T, Value
-from .utils.fields import build_field, build_wrapper
+from .types import Adapter, AdapterType, Eval, FieldType, FormatType, T, Value
+from .utils.fields import build_field, build_wrapper, field_get_meta
 
 
 def field(fmt: FormatType, *, default=..., default_factory=MISSING):
@@ -127,6 +127,30 @@ def switch(key: Value[Any]):
             key=key,
             fields=fields,
         )
+
+    return wrap
+
+
+def adapter(
+    _adapter: Adapter = None,
+    /,
+    *,
+    encode: AdapterType = None,
+    decode: AdapterType = None,
+):
+    if [_adapter, encode and decode].count(None) != 1:
+        raise ValueError("Either 'adapter' or 'encode' and 'decode' has to be set")
+    if not _adapter:
+        _adapter = Adapter()
+        _adapter.encode = encode
+        _adapter.decode = decode
+
+    def wrap(base: Field):
+        meta = field_get_meta(base)
+        if meta.ftype != FieldType.FIELD:
+            raise TypeError("Can't assign adapters to non-standard fields")
+        meta.adapter = _adapter
+        return base
 
     return wrap
 

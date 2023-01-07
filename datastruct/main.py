@@ -47,14 +47,11 @@ class DataStruct:
                 f"no value was passed, nor can it be built",
             )
 
-    def _write_value(self, ctx: Context, meta: FieldMeta, value: Any) -> Any:
-        # build fields if necessary
-        if meta.builder and (value is Ellipsis or meta.always):
-            value = evaluate(ctx, meta.builder)
+    def _write_value(self, ctx: Context, meta: FieldMeta, value: Any) -> None:
         # pack structures directly
         if isinstance(value, DataStruct):
             value.pack(io=ctx.io, parent=ctx)
-            return value
+            return
         # evaluate and validate the format
         fmt = fmt_evaluate(ctx, meta.fmt, self.config().endianness)
         if isinstance(fmt, int) and isinstance(value, bytes):
@@ -62,11 +59,9 @@ class DataStruct:
                 raise ValueError(f"Not enough bytes to write: {len(value)} < {fmt}")
             # assume the field is bytes, write it directly
             ctx.io.write(value[:fmt])
-            return value
+            return
         # use struct.pack() to write the raw value
-        encoded = field_encode(value)
-        ctx.io.write(struct.pack(fmt, encoded))
-        return value
+        ctx.io.write(struct.pack(fmt, value))
 
     def _write_field(
         self,
@@ -76,7 +71,16 @@ class DataStruct:
         value: Any,
     ) -> Any:
         if meta.ftype == FieldType.FIELD:
-            return self._write_value(ctx, meta, value)
+            # build fields if necessary
+            if meta.builder and (value is Ellipsis or meta.always):
+                value = evaluate(ctx, meta.builder)
+            # 1. encode the value
+            encoded = field_encode(value)
+            # 2. run custom adapter
+            adapted = meta.adapter.encode(encoded, ctx) if meta.adapter else encoded
+            # 3. write the raw value
+            self._write_value(ctx, meta, adapted)
+            return value
 
         if meta.ftype == FieldType.SEEK:
             field_do_seek(ctx, meta)
@@ -163,7 +167,6 @@ class DataStruct:
         # use struct.unpack() to read the raw value
         length = struct.calcsize(fmt)
         (value,) = struct.unpack(fmt, ctx.io.read(length))
-        value = field_decode(value, type)
         return value
 
     @classmethod
@@ -174,7 +177,13 @@ class DataStruct:
         meta: FieldMeta,
     ) -> Any:
         if meta.ftype == FieldType.FIELD:
-            return cls._read_value(ctx, meta, field.type)
+            # 3. read the raw value
+            adapted = cls._read_value(ctx, meta, field.type)
+            # 2. run custom adapter
+            encoded = meta.adapter.decode(adapted, ctx) if meta.adapter else adapted
+            # 1. decode the value
+            value = field_decode(encoded, field.type)
+            return value
 
         if meta.ftype == FieldType.SEEK:
             field_do_seek(ctx, meta)

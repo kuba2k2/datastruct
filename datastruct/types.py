@@ -37,11 +37,20 @@ V = TypeVar("V")
 Eval = Callable[[Context], V]
 Value = Union[Eval[V], V]
 FormatType = Value[Union[str, int]]
+AdapterType = Callable[[Any, Context], Any]
+
+
+class Adapter:
+    def encode(self, value: Any, ctx: Context) -> Any:
+        ...
+
+    def decode(self, value: Any, ctx: Context) -> Any:
+        ...
 
 
 class FieldType(Enum):
     # standard field
-    FIELD = auto()  # field(), subfield(), built()
+    FIELD = auto()  # field(), subfield(), built(), adapter()
     # special fields
     SEEK = auto()  # seek(), skip()
     PADDING = auto()  # padding(), align()
@@ -59,6 +68,7 @@ class FieldMeta(Container):
     fmt: FormatType
     builder: Value[Any]
     always: bool
+    adapter: Adapter
     # SEEK
     offset: Value[int]
     whence: int
