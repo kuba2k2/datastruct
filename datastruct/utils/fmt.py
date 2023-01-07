@@ -45,4 +45,6 @@ def fmt_evaluate(
         fmt_check(fmt)
     if fmt[0] not in FMT_ENDIAN:
         fmt = endianness.value + fmt
+    if fmt[-1] == "s" and fmt[1:-1].isnumeric():
+        return int(fmt[1:-1])
     return fmt

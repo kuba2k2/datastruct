@@ -57,8 +57,10 @@ class DataStruct:
         # evaluate and validate the format
         fmt = fmt_evaluate(ctx, meta.fmt, self.config().endianness)
         if isinstance(fmt, int):
+            if len(value) < fmt:
+                raise ValueError(f"Not enough bytes to write: {len(value)} < {fmt}")
             # assume the field is bytes, write it directly
-            ctx.io.write(value)
+            ctx.io.write(value[:fmt])
             return value
         # use struct.pack() to write the raw value
         encoded = field_encode(value)
@@ -150,7 +152,10 @@ class DataStruct:
         fmt = fmt_evaluate(ctx, meta.fmt, cls.config().endianness)
         if isinstance(fmt, int):
             # assume the field is bytes, write it directly
-            return ctx.io.read(fmt)
+            value = ctx.io.read(fmt)
+            if len(value) < fmt:
+                raise ValueError(f"Not enough bytes to read: {len(value)} < {fmt}")
+            return value
         # use struct.unpack() to read the raw value
         length = struct.calcsize(fmt)
         (value,) = struct.unpack(fmt, ctx.io.read(length))
