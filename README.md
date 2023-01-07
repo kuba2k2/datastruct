@@ -1,4 +1,4 @@
-# datastruct
+# py-datastruct
 
 This is a (relatively) simple, **pure-Python, no dependency** library, aiming to simplify parsing and building binary data structures. It uses **[`dataclasses`](https://docs.python.org/3/library/dataclasses.html)** as its main container type, and **[`struct`](https://docs.python.org/3/library/struct.html)-compatible format specifiers** for writing field definitions.
 
@@ -7,7 +7,7 @@ The way of composing structures is somewhat similar to (and inspired by) [Constr
 ## Installation
 
 ```shell
-pip install datastruct
+pip install py-datastruct
 ```
 
 ## Usage

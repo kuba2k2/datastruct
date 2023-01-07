@@ -1,10 +1,13 @@
 [tool.poetry]
-name = "datastruct"
+name = "py-datastruct"
 version = "0.1.0"
 description = "Combination of struct and dataclasses for easy parsing of binary formats"
 authors = ["Kuba Szczodrzyński <kuba@szczodrzynski.pl>"]
 license = "MIT"
 readme = "README.md"
+packages = [
+    { include = "datastruct" },
+]
 
 [tool.poetry.dependencies]
 python = "^3.7"
