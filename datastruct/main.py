@@ -15,7 +15,7 @@ from .utils.context import (
     ctx_read,
     ctx_write,
     evaluate,
-    hook_start,
+    hook_apply,
 )
 from .utils.fields import (
     field_decode,
@@ -103,7 +103,7 @@ class DataStruct:
             return evaluate(ctx, meta.action)
 
         if meta.ftype == FieldType.HOOK:
-            hook_start(ctx, meta.hook)
+            hook_apply(ctx, meta.hook)
             return Ellipsis
 
         if meta.ftype == FieldType.REPEAT:
@@ -214,7 +214,7 @@ class DataStruct:
             return evaluate(ctx, meta.action)
 
         if meta.ftype == FieldType.HOOK:
-            hook_start(ctx, meta.hook)
+            hook_apply(ctx, meta.hook)
             return Ellipsis
 
         if meta.ftype == FieldType.REPEAT:

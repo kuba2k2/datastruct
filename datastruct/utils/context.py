@@ -1,7 +1,7 @@
 #  Copyright (c) Kuba Szczodrzyński 2023-1-3.
 
 from io import SEEK_CUR, SEEK_SET
-from typing import IO
+from typing import IO, Union
 
 from ..context import Container, Context
 from ..types import Hook, V, Value
@@ -74,13 +74,19 @@ def ctx_write(ctx: Context, s: bytes) -> int:
     return n
 
 
-def hook_start(ctx: Context, hook: Hook):
-    if hook is not None:
+def hook_apply(ctx: Context, hook: Union[Hook, str]):
+    if isinstance(hook, Hook):
+        # add the hook to the list
         evaluate(ctx, hook.init)
         ctx.G.hooks.append(hook)
     else:
-        hook: Hook = ctx.G.hooks.pop(-1)
-        evaluate(ctx, hook.end)
+        # remove the latest hook matching this name
+        for h in ctx.G.hooks[::-1]:
+            if h.name != hook:
+                continue
+            ctx.G.hooks.remove(h)
+            evaluate(ctx, h.end)
+            return
 
 
 def hook_do(ctx: Context, action: str, data: V) -> V:

@@ -1,10 +1,11 @@
 #  Copyright (c) Kuba Szczodrzyński 2023-1-7.
 
+from dataclasses import Field
 from io import BytesIO
-from typing import Callable, Optional
+from typing import Any, Callable, Optional
 
 from ..context import Context
-from ..types import Eval, FieldType, Hook, T, Value
+from ..types import Adapter, Eval, FieldType, Hook, T, Value
 from ..utils.context import evaluate
 from ._utils import build_field
 from .special import action, hook
@@ -12,8 +13,8 @@ from .standard import built
 from .wrapper import adapter
 
 
-def hook_end():
-    return build_field(FieldType.HOOK, public=False, hook=None)
+def hook_end(name: str):
+    return build_field(FieldType.HOOK, public=False, hook=name)
 
 
 def packing(check: Value[T]) -> Eval[T]:
@@ -48,7 +49,7 @@ def validate(check: Eval[bool], doc: str = None):
     return action(_validate)
 
 
-def buffer(end: Callable[[BytesIO, Context], None]):
+def buffer_start(end: Callable[[BytesIO, Context], None]):
     class Buffer(Hook):
         io: BytesIO
 
@@ -62,4 +63,60 @@ def buffer(end: Callable[[BytesIO, Context], None]):
         def end(self, ctx: Context) -> None:
             end(self.io, ctx)
 
-    return hook(Buffer())
+    return hook("hook_buffer", Buffer())
+
+
+def buffer_end():
+    return hook_end("hook_buffer")
+
+
+def checksum_start(
+    init: Callable[[], T],
+    update: Callable[[bytes, T], Optional[T]],
+    end: Callable[[T], Any],
+):
+    class Checksum(Hook):
+        obj: T
+
+        def init(self, ctx: Context) -> None:
+            self.obj = init()
+
+        def update(self, value: bytes, ctx: Context) -> Optional[bytes]:
+            ret = update(value, self.obj)
+            if ret is not None:
+                self.obj = ret
+            return value
+
+        def end(self, ctx: Context) -> None:
+            ctx.P.hook_checksum = end(self.obj)
+
+    return hook("hook_checksum", Checksum())
+
+
+def checksum_end():
+    return hook_end("hook_checksum")
+
+
+def checksum_field(doc: str):
+    class Checksum(Adapter):
+        def encode(self, value: Any, ctx: Context) -> Any:
+            if "hook_checksum" not in ctx.P:
+                raise ValueError("Add a checksum_end() field first")
+            # writing - return the valid checksum
+            return ctx.P.hook_checksum
+
+        def decode(self, value: Any, ctx: Context) -> Any:
+            if "hook_checksum" not in ctx.P:
+                raise ValueError("Add a checksum_end() field first")
+            # reading - validate the checksum
+            if value != ctx.P.hook_checksum:
+                message = f"read {value}; calculated {ctx.P.hook_checksum}"
+                if not doc:
+                    raise ValueError(f"Checksum invalid; {message}")
+                raise ValueError(f"Checksum invalid at '{doc}'; {message}")
+            return value
+
+    def wrap(base: Field):
+        return adapter(Checksum())(base)
+
+    return wrap
