@@ -5,6 +5,7 @@ from io import SEEK_CUR, SEEK_SET
 from typing import Any, Dict, Tuple, Type
 
 from .types import Adapter, AdapterType, Eval, FieldType, FormatType, T, Value
+from .utils.context import evaluate
 from .utils.fields import build_field, build_wrapper, field_get_meta
 
 
@@ -161,3 +162,10 @@ def packing(check: Value[T]) -> Eval[T]:
 
 def unpacking(check: Value[T]) -> Eval[T]:
     return lambda ctx: check(ctx) if ctx.unpacking else None
+
+
+def virtual(value: Value[T]):
+    return adapter(
+        encode=lambda v, ctx: b"",
+        decode=lambda v, ctx: evaluate(ctx, value),
+    )(built(0, builder=value, always=True))

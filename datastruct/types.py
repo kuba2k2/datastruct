@@ -50,7 +50,7 @@ class Adapter:
 
 class FieldType(Enum):
     # standard field
-    FIELD = auto()  # field(), subfield(), built(), adapter()
+    FIELD = auto()  # field(), subfield(), built(), adapter(), virtual()
     # special fields
     SEEK = auto()  # seek(), skip()
     PADDING = auto()  # padding(), align()
