@@ -57,7 +57,7 @@ class DataStruct:
             return value
         # evaluate and validate the format
         fmt = fmt_evaluate(ctx, meta.fmt, self.config().endianness)
-        if isinstance(fmt, int):
+        if isinstance(fmt, int) and isinstance(value, bytes):
             if len(value) < fmt:
                 raise ValueError(f"Not enough bytes to write: {len(value)} < {fmt}")
             # assume the field is bytes, write it directly
@@ -74,22 +74,18 @@ class DataStruct:
         field: Field,
         meta: FieldMeta,
         value: Any,
-    ) -> None:
+    ) -> Any:
         if meta.ftype == FieldType.FIELD:
-            value = self._write_value(ctx, meta, value)
-            # update built value in the actual object
-            setattr(self, field.name, value)
-            setattr(ctx, field.name, value)
-            return
+            return self._write_value(ctx, meta, value)
 
         if meta.ftype == FieldType.SEEK:
             field_do_seek(ctx, meta)
-            return
+            return Ellipsis
 
         if meta.ftype == FieldType.PADDING:
             _, padding, _ = field_get_padding(self.config(), ctx, meta)
             ctx.io.write(padding)
-            return
+            return Ellipsis
 
         if meta.ftype == FieldType.REPEAT:
             # repeat() field - value type must be List
@@ -119,10 +115,10 @@ class DataStruct:
                     item = next(items_iter)
                 else:
                     item = Ellipsis
-                item = self._write_value(ctx, base_meta, item)
+                item = self._write_field(ctx, base_field, base_meta, item)
                 if isinstance(items, list):
                     # don't reassign built fields to tuples
-                    # only update in lists (which will update the object too)
+                    # only update in lists (which will update self+ctx too)
                     if len(items) <= i:
                         items.append(item)
                     else:
@@ -136,13 +132,12 @@ class DataStruct:
                     break
                 i += 1
             ctx.pop("i", None)
-            return
+            return items
 
         if meta.ftype == FieldType.COND:
             if evaluate(ctx, meta.condition) is False:
-                return
-            self._write_field(ctx, *field_get_base(meta), value)
-            return
+                return Ellipsis
+            return self._write_field(ctx, *field_get_base(meta), value)
 
         if meta.ftype == FieldType.SWITCH:
             field = field_switch_base(self.config(), ctx, meta)
@@ -150,8 +145,7 @@ class DataStruct:
             if value is Ellipsis:
                 # assign default based on field mode
                 value = field_get_default(field, meta, DataStruct)
-            self._write_field(ctx, field, meta, value)
-            return
+            return self._write_field(ctx, field, meta, value)
 
     @classmethod
     def _read_value(cls, ctx: Context, meta: FieldMeta, typ: Type[T]) -> T:
@@ -180,9 +174,7 @@ class DataStruct:
         meta: FieldMeta,
     ) -> Any:
         if meta.ftype == FieldType.FIELD:
-            value = cls._read_value(ctx, meta, field.type)
-            ctx[field.name] = value
-            return value
+            return cls._read_value(ctx, meta, field.type)
 
         if meta.ftype == FieldType.SEEK:
             field_do_seek(ctx, meta)
@@ -250,7 +242,11 @@ class DataStruct:
             for field, meta, value in fields:
                 field_name = f"{type(self).__name__}.{field.name}"
                 # print(f"Packing {meta.ftype.name} '{field_name}'")
-                self._write_field(ctx, field, meta, value)
+                value = self._write_field(ctx, field, meta, value)
+                # update built value in the actual object
+                if value is not Ellipsis:
+                    ctx[field.name] = value
+                    setattr(self, field.name, value)
         except EXCEPTIONS as e:
             suffix = f"; while packing '{field_name}'"
             e.args = (e.args[0] + suffix,)
@@ -274,6 +270,7 @@ class DataStruct:
                 field_validate(field, meta)
                 value = cls._read_field(ctx, field, meta)
                 if value is not Ellipsis:
+                    ctx[field.name] = value
                     values[field.name] = value
             field_name = f"{cls.__name__}()"
             # noinspection PyArgumentList

@@ -94,7 +94,7 @@ def repeat(
     last: Eval[bool] = None,
     default_factory: Any = MISSING,
 ):
-    if [count, when, last].count(None) < 1:
+    if [count, when, last].count(None) == 3:
         raise ValueError("At least one of 'count', 'when' or 'last' has to be set")
 
     return build_wrapper(
