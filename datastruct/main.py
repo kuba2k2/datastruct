@@ -17,6 +17,7 @@ from .utils.fields import (
     field_get_default,
     field_get_meta,
     field_get_padding,
+    field_switch_base,
     field_validate,
 )
 from .utils.fmt import fmt_evaluate
@@ -143,6 +144,15 @@ class DataStruct:
             self._write_field(ctx, *field_get_base(meta), value)
             return
 
+        if meta.ftype == FieldType.SWITCH:
+            field = field_switch_base(self.config(), ctx, meta)
+            meta = field_get_meta(field)
+            if value is Ellipsis:
+                # assign default based on field mode
+                value = field_get_default(field, meta, DataStruct)
+            self._write_field(ctx, field, meta, value)
+            return
+
     @classmethod
     def _read_value(cls, ctx: Context, meta: FieldMeta, typ: Type[T]) -> T:
         # unpack structures directly
@@ -221,6 +231,11 @@ class DataStruct:
                     return value
                 return Ellipsis
             return cls._read_field(ctx, *field_get_base(meta))
+
+        if meta.ftype == FieldType.SWITCH:
+            field = field_switch_base(cls.config(), ctx, meta)
+            meta = field_get_meta(field)
+            return cls._read_field(ctx, field, meta)
 
     def pack(
         self,

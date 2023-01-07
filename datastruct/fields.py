@@ -1,8 +1,8 @@
 #  Copyright (c) Kuba Szczodrzyński 2023-1-3.
 
-from dataclasses import MISSING
+from dataclasses import MISSING, Field
 from io import SEEK_CUR, SEEK_SET
-from typing import Any
+from typing import Any, Dict, Tuple, Type
 
 from .types import Eval, FieldType, FormatType, T, Value
 from .utils.fields import build_field, build_wrapper
@@ -115,6 +115,20 @@ def cond(condition: Value[bool], *, if_not: Value[Any] = ...):
         condition=condition,
         if_not=if_not,
     )
+
+
+def switch(key: Value[Any]):
+    def wrap(fields: Dict[Any, Tuple[Type, Field]] = None, **kwargs):
+        fields = fields or {}
+        fields.update(kwargs)
+        return build_field(
+            ftype=FieldType.SWITCH,
+            # meta
+            key=key,
+            fields=fields,
+        )
+
+    return wrap
 
 
 def packing(check: Value[T]) -> Eval[T]:

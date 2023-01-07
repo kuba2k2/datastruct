@@ -137,6 +137,25 @@ def field_get_padding(
     return length, repstr(pattern, length), check
 
 
+def field_switch_base(config: Config, ctx: Context, meta: FieldMeta) -> Field:
+    key = evaluate(ctx, meta.key)
+    keys = [key]
+    if isinstance(key, int):
+        keys.append(f"_{key}")
+    if isinstance(key, bool):
+        keys.append(str(key).lower())
+    if isinstance(key, Enum):
+        keys.append(key.name)
+        keys.append(key.value)
+    for key in keys:
+        if key not in meta.fields:
+            continue
+        return meta.fields[key][1]
+    if "default" in meta.fields:
+        return meta.fields["default"][1]
+    raise ValueError(f"Unmapped field type (and no default=...), tried {keys}")
+
+
 def field_get_default(field: Field, meta: FieldMeta, ds: type) -> Any:
     if meta.ftype == FieldType.FIELD:
         if meta.builder:
@@ -177,6 +196,10 @@ def field_get_default(field: Field, meta: FieldMeta, ds: type) -> Any:
     if meta.ftype == FieldType.COND:
         field, meta = field_get_base(meta)
         return field_get_default(field, meta, ds)
+
+    # can't build a default value for switch fields
+    if meta.ftype == FieldType.SWITCH:
+        return Ellipsis
 
     return None
 
@@ -219,6 +242,14 @@ def field_validate(field: Field, meta: FieldMeta) -> None:
         if base_meta.builder and not base_meta.always:
             # var: ... = repeat()(built(..., always=False))
             raise ValueError("Built fields inside repeat() are always built")
+
+    elif meta.ftype == FieldType.SWITCH:
+        # test each case of the switch field
+        for field_type, base_field in meta.fields.values():
+            base_meta = field_get_meta(base_field)
+            base_field.name = field.name
+            base_field.type = field_type
+            field_validate(base_field, base_meta)
 
     # update types and validate base fields
     if meta.base:

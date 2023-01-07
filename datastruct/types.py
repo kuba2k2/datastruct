@@ -2,7 +2,7 @@
 
 from dataclasses import Field
 from enum import Enum, auto
-from typing import IO, Any, Callable, TypeVar, Union
+from typing import IO, Any, Callable, Dict, Tuple, Type, TypeVar, Union
 
 
 class Container(dict):
@@ -48,6 +48,7 @@ class FieldType(Enum):
     # wrapper fields
     REPEAT = auto()  # repeat()
     COND = auto()  # cond()
+    SWITCH = auto()  # switch()
 
 
 class FieldMeta(Container):
@@ -75,6 +76,9 @@ class FieldMeta(Container):
     # COND
     condition: Value[bool]
     if_not: Value[Any]
+    # SWITCH
+    key: Value[Any]
+    fields: Dict[Any, Tuple[Type, Field]]
 
 
 class Endianness(Enum):
