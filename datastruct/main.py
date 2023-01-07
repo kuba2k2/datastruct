@@ -4,6 +4,7 @@ import dataclasses
 import struct
 from dataclasses import Field, dataclass
 from functools import lru_cache
+from io import BytesIO
 from typing import IO, Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 from .context import Context
@@ -262,10 +263,12 @@ class DataStruct:
 
     def pack(
         self,
-        io: IO[bytes],
+        io: Optional[IO[bytes]] = None,
         parent: Optional["Context"] = None,
         **kwargs,
-    ) -> None:
+    ) -> bytes:
+        if io is None:
+            io = BytesIO()
         if parent:
             glob = parent.G
         else:
@@ -287,14 +290,17 @@ class DataStruct:
             suffix = f"; while packing '{field_name}'"
             e.args = (e.args[0] + suffix,)
             raise e
+        return io.getvalue()
 
     @classmethod
     def unpack(
         cls: Type["DS"],
-        io: IO[bytes],
+        io: Union[IO[bytes], bytes],
         parent: Optional[Context] = None,
         **kwargs,
     ) -> "DS":
+        if isinstance(io, bytes):
+            io = BytesIO(io)
         if parent:
             glob = parent.G
         else:
