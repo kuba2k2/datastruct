@@ -170,7 +170,7 @@ def field_validate(field: Field, meta: FieldMeta) -> None:
         if item_type is not None:
             # var: List[...] = field(...)
             raise ValueError("Can't use a list without repeat() wrapper")
-        if is_dataclass(field_type) and meta.fmt:
+        if is_dataclass(field_type) and meta.fmt and not meta.adapter:
             # var: DataStruct = field(...)
             raise ValueError("Use subfield() for instances of DataStruct")
         if meta.fmt:

@@ -1,15 +1,16 @@
 #  Copyright (c) Kuba Szczodrzyński 2023-1-7.
 
-from dataclasses import Field
+import dataclasses
+from dataclasses import Field, is_dataclass
 from io import BytesIO
-from typing import Any, Callable, Optional
+from typing import Any, Callable, Optional, Type, Union
 
 from ..context import Context
 from ..types import Adapter, Eval, FieldType, Hook, T, Value
 from ..utils.context import evaluate
 from ._utils import build_field
 from .special import action, hook
-from .standard import built
+from .standard import built, field
 from .wrapper import adapter
 
 
@@ -120,3 +121,32 @@ def checksum_field(doc: str):
         return adapter(Checksum())(base)
 
     return wrap
+
+
+def bitfield(fmt: str, cls: Type[T], default: Union[bytes, int, None] = None):
+    try:
+        import bitstruct
+    except (ModuleNotFoundError, ImportError):
+        raise ImportError(
+            "'bitstruct' package is not found, but required for bitfield()"
+        )
+    if not is_dataclass(cls):
+        raise TypeError("'cls' must be a dataclass")
+    size = bitstruct.calcsize(fmt) // 8
+    if isinstance(default, int):
+        default = default.to_bytes(length=size, byteorder="little")
+
+    def encode(value: T, *_) -> bytes:
+        data = dataclasses.astuple(value)
+        return bitstruct.pack(fmt, *data)
+
+    def decode(value: bytes, *_) -> T:
+        data = bitstruct.unpack(fmt, value)
+        return cls(*data)
+
+    return adapter(encode=encode, decode=decode)(
+        field(
+            size,
+            default_factory=lambda: decode(default),
+        )
+    )

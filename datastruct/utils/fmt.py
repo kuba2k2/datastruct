@@ -13,7 +13,7 @@ def fmt_check(fmt: Value[str]) -> None:
     Check the passed format specifier.
     Do nothing for lambdas; that needs to be checked later on.
     """
-    if callable(fmt):
+    if callable(fmt) or isinstance(fmt, int):
         return
     orig_fmt = fmt
     if fmt[0] in FMT_ENDIAN:
