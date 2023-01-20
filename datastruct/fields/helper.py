@@ -45,6 +45,10 @@ def const_into(into: str, value: Any):
     return action(lambda ctx: setattr(ctx, into, value))
 
 
+def eval_into(into: str, value: Value[Any]):
+    return action(lambda ctx: setattr(ctx, into, evaluate(ctx, value)))
+
+
 def probe():
     def _probe(ctx: Context):
         print(f"Probe: {ctx}")
@@ -84,24 +88,24 @@ def buffer_end():
 
 
 def checksum_start(
-    init: Callable[[], T],
-    update: Callable[[bytes, T], Optional[T]],
-    end: Callable[[T], Any],
+    init: Callable[[Context], T],
+    update: Callable[[bytes, T, Context], Optional[T]],
+    end: Callable[[T, Context], Any],
 ):
     class Checksum(Hook):
         obj: T
 
         def init(self, ctx: Context) -> None:
-            self.obj = init()
+            self.obj = init(ctx)
 
         def update(self, value: bytes, ctx: Context) -> Optional[bytes]:
-            ret = update(value, self.obj)
+            ret = update(value, self.obj, ctx)
             if ret is not None:
                 self.obj = ret
             return value
 
         def end(self, ctx: Context) -> None:
-            ctx.P.hook_checksum = end(self.obj)
+            ctx.P.hook_checksum = end(self.obj, ctx)
 
     return hook("hook_checksum", Checksum())
 
