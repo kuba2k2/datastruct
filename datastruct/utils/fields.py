@@ -45,6 +45,20 @@ def field_get_type(field: Field) -> Tuple[type, Optional[type]]:
 
 
 def field_get_meta(field: Field) -> FieldMeta:
+    if callable(field.default):
+        raise ValueError(
+            f"Field '{field.name}' is most likely a wrapper field; "
+            f"make sure to invoke it, passing base field as an argument",
+        )
+    if (
+        isinstance(field.default, tuple)
+        and field.default
+        and isinstance(field.default[0], Field)
+    ):
+        raise TypeError(
+            f"Field '{field.name}' default value is a tuple; "
+            f"make sure you didn't add a comma after field declaration",
+        )
     if not field.metadata:
         raise ValueError(
             f"Can't find field metadata of '{field.name}'; "
