@@ -60,6 +60,7 @@ class Context(Container):
     _: "Context"
     G: Global
     P: Params
+    self: Any
 
     def __str__(self) -> str:
         data = dict(self)

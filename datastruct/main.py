@@ -96,8 +96,13 @@ class DataStruct:
     ) -> Any:
         if meta.ftype == FieldType.FIELD:
             # build fields if necessary
-            if meta.builder and (value is Ellipsis or meta.always):
-                value = evaluate(ctx, meta.builder)
+            try:
+                if meta.builder and (value is Ellipsis or meta.always):
+                    value = evaluate(ctx, meta.builder)
+            except Exception as e:
+                if not ctx.G.sizing:
+                    # avoid parent reference errors while sizing
+                    raise e
             if ctx.G.sizing:
                 self._sizeof_value(ctx, meta, value)
                 return value
@@ -304,7 +309,7 @@ class DataStruct:
     ) -> Optional[bytes]:
         if io is None:
             io = BytesIO()
-        if parent:
+        if parent and not isinstance(io, SizingIO):
             glob = parent.G
         else:
             glob = build_global_context(
@@ -317,6 +322,7 @@ class DataStruct:
         fields = self.fields()
         values = {f.name: v for f, m, v in fields if v != Ellipsis}
         ctx = build_context(glob, parent, **values)
+        ctx.self = self
         field_name = type(self).__name__
         try:
             for field, meta, value in fields:
@@ -328,7 +334,10 @@ class DataStruct:
                 if value is not Ellipsis and meta.public:
                     setattr(self, field.name, value)
         except EXCEPTIONS as e:
-            suffix = f"; while packing '{field_name}'"
+            if ctx.G.sizing:
+                suffix = f"; while sizing '{field_name}'"
+            else:
+                suffix = f"; while packing '{field_name}'"
             e.args = (e.args[0] + suffix,)
             raise e
         if isinstance(io, BytesIO):

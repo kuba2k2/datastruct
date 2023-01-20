@@ -1,7 +1,8 @@
 #  Copyright (c) Kuba Szczodrzyński 2023-1-3.
 
-from typing import Sized
+from typing import Optional, Sized
 
+from ..context import Context
 from ..main import DataStruct
 from ..types import Endianness
 from .const import ARRAYS
@@ -22,11 +23,11 @@ def datastruct(
     return wrap  # @datastruct(...)
 
 
-def sizeof(o) -> int:
+def sizeof(o, ctx: Optional[Context] = None) -> int:
     if isinstance(o, DataStruct):
-        return o.sizeof()
+        return o.sizeof(parent=ctx)
     if isinstance(o, ARRAYS):
-        return sum(i.sizeof() for i in o)
+        return sum(i.sizeof(parent=ctx) for i in o)
     if isinstance(o, Sized):
         return len(o)
     raise TypeError(f"Unknown type '{type(o)}'")

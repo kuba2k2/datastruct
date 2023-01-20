@@ -5,4 +5,4 @@ import struct
 FMT_ENDIAN = "@=<>!"
 FMT_SPEC = "cbB?hHiIlLqQnNefds"
 ARRAYS = (list, tuple)
-EXCEPTIONS = (ValueError, TypeError, struct.error)
+EXCEPTIONS = (ValueError, TypeError, AttributeError, struct.error)
