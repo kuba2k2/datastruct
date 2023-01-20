@@ -103,3 +103,4 @@ class Config(Container):
     endianness: Endianness
     padding_pattern: bytes
     padding_check: bool
+    repeat_fill: bool

@@ -2,7 +2,7 @@
 
 import dataclasses
 import struct
-from dataclasses import Field, dataclass
+from dataclasses import MISSING, Field, dataclass
 from functools import lru_cache
 from io import BytesIO
 from typing import IO, Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
@@ -132,20 +132,34 @@ class DataStruct:
             # repeat() field - value type must be List
             if not isinstance(value, ARRAYS):
                 raise TypeError(f"Value is not an array: {value}")
-            items: Union[list, tuple] = value
 
             i = 0
             count = evaluate(ctx, meta.count)
             base_field, base_meta = field_get_base(meta)
-            items_iter = iter(items)
 
             if isinstance(count, int) and len(value) != count and not base_meta.builder:
-                # ensure the list size matches expected element count,
-                # apart from built() subfields, which are implicitly trusted here
-                raise ValueError(
-                    f"List size ({len(value)}) doesn't match "
-                    f"repeat() 'count' parameter value ({count})",
+                has_default = (
+                    base_field.default is not Ellipsis
+                    or base_field.default_factory is not MISSING
                 )
+                if not self.config().repeat_fill or not has_default:
+                    # ensure the list size matches expected element count,
+                    # apart from built() subfields, which are implicitly trusted here
+                    raise ValueError(
+                        f"List size ({len(value)}) doesn't match repeat() 'count' "
+                        f"parameter value ({count}); to automatically extend lists, "
+                        f"enable 'repeat_fill' in config and provide a default "
+                        f"value of the base field",
+                    )
+                # extend list fields with default value
+                while len(value) < count:
+                    value.append(field_get_default(base_field, base_meta, DataStruct))
+                # trim list fields that are too long
+                if len(value) > count:
+                    value = value[0:count]
+
+            items: Union[list, tuple] = value
+            items_iter = iter(items)
 
             while count is None or i < count:
                 ctx.P.i = i

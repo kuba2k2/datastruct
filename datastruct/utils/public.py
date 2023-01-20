@@ -11,6 +11,7 @@ def datastruct(
     endianness: Endianness = None,
     padding_pattern: bytes = None,
     padding_check: bool = None,
+    repeat_fill: bool = None,
 ):
     args = {k: v for k, v in locals().items() if v is not None}
 
