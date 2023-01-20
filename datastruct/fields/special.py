@@ -28,7 +28,12 @@ def skip(offset: Value[int]):
     )
 
 
-def padding(length: Value[int], *, pattern: bytes = None, check: bool = None):
+def padding(
+    length: Value[int],
+    *,
+    pattern: bytes = None,
+    check: bool = None,
+):
     return build_field(
         ftype=FieldType.PADDING,
         public=False,
@@ -44,7 +49,7 @@ def align(
     absolute: bool = False,
     *,
     pattern: bytes = None,
-    check: bool = False,
+    check: bool = None,
 ):
     return build_field(
         ftype=FieldType.PADDING,
@@ -62,7 +67,7 @@ def alignto(
     absolute: bool = False,
     *,
     pattern: bytes = None,
-    check: bool = False,
+    check: bool = None,
 ):
     return build_field(
         ftype=FieldType.PADDING,
