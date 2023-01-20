@@ -94,6 +94,8 @@ def field_get_padding(
         length = pad_up(tell, modulus)
     else:
         raise ValueError("Unknown padding type")
+    if ctx.G.sizing:
+        return length, b"", False
     check = meta.check if meta.check is not None else config.padding_check
     pattern = meta.pattern if meta.pattern is not None else config.padding_pattern
     return length, repstr(pattern, length), check

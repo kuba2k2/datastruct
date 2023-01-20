@@ -9,6 +9,7 @@ from typing import IO, Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
 from .context import Context
 from .types import Config, FieldMeta, FieldType, T
+from .utils.config import datastruct_get_config
 from .utils.const import ARRAYS, EXCEPTIONS
 from .utils.context import (
     build_context,
@@ -30,7 +31,7 @@ from .utils.fields import (
     field_validate,
 )
 from .utils.fmt import fmt_evaluate
-from .utils.public import datastruct_get_config
+from .utils.misc import SizingIO
 
 
 @dataclass
@@ -72,6 +73,20 @@ class DataStruct:
         # use struct.pack() to write the raw value
         ctx_write(ctx, struct.pack(fmt, value))
 
+    def _sizeof_value(self, ctx: Context, meta: FieldMeta, value: Any) -> None:
+        # size structures directly
+        if isinstance(value, DataStruct):
+            value.pack(io=ctx.G.io, parent=ctx)
+            return
+        # evaluate and validate the format
+        fmt = fmt_evaluate(ctx, meta.fmt, self.config().endianness)
+        if isinstance(fmt, int):
+            # assume the field is bytes, size it directly
+            ctx.G.io.write(fmt)
+            return
+        # use struct.calcsize() to calculate size of the raw value
+        ctx.G.io.write(struct.calcsize(fmt))
+
     def _write_field(
         self,
         ctx: Context,
@@ -83,6 +98,9 @@ class DataStruct:
             # build fields if necessary
             if meta.builder and (value is Ellipsis or meta.always):
                 value = evaluate(ctx, meta.builder)
+            if ctx.G.sizing:
+                self._sizeof_value(ctx, meta, value)
+                return value
             # 1. encode the value
             encoded = field_encode(value)
             # 2. run custom adapter
@@ -96,8 +114,11 @@ class DataStruct:
             return Ellipsis
 
         if meta.ftype == FieldType.PADDING:
-            _, padding, _ = field_get_padding(self.config(), ctx, meta)
-            ctx_write(ctx, padding)
+            length, padding, _ = field_get_padding(self.config(), ctx, meta)
+            if ctx.G.sizing:
+                ctx.G.io.write(length)
+            else:
+                ctx_write(ctx, padding)
             return Ellipsis
 
         if meta.ftype == FieldType.ACTION:
@@ -266,13 +287,18 @@ class DataStruct:
         io: Optional[IO[bytes]] = None,
         parent: Optional["Context"] = None,
         **kwargs,
-    ) -> bytes:
+    ) -> Optional[bytes]:
         if io is None:
             io = BytesIO()
         if parent:
             glob = parent.G
         else:
-            glob = build_global_context(io, env=kwargs, packing=True)
+            glob = build_global_context(
+                io=io,
+                env=kwargs,
+                packing=True,
+                sizing=isinstance(io, SizingIO),
+            )
 
         fields = self.fields()
         values = {f.name: v for f, m, v in fields if v != Ellipsis}
@@ -290,7 +316,9 @@ class DataStruct:
             suffix = f"; while packing '{field_name}'"
             e.args = (e.args[0] + suffix,)
             raise e
-        return io.getvalue()
+        if isinstance(io, BytesIO):
+            return io.getvalue()
+        return None
 
     @classmethod
     def unpack(
@@ -327,6 +355,16 @@ class DataStruct:
             suffix = f"; while unpacking '{field_name}'"
             e.args = (e.args[0] + suffix,)
             raise e
+
+    def sizeof(
+        self,
+        parent: Optional["Context"] = None,
+        **kwargs,
+    ) -> int:
+        io = SizingIO()
+        self.pack(io=io, parent=parent, **kwargs)
+        print("Sizeof", type(self), "returning", io.size, hex(io.size))
+        return io.size
 
     def fields(self) -> List[Tuple[Field, FieldMeta, Any]]:
         return [

@@ -5,5 +5,6 @@ __all__ = [
     "context",
     "fields",
     "fmt",
+    "misc",
     "public",
 ]

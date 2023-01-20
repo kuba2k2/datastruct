@@ -21,11 +21,13 @@ def build_global_context(
     env: dict,
     packing: bool = False,
     unpacking: bool = False,
+    sizing: bool = False,
 ) -> Context.Global:
     return Context.Global(
         io=io,
         packing=packing,
         unpacking=unpacking,
+        sizing=sizing,
         env=Container(env),
         root=None,
         hooks=[],

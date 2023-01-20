@@ -22,6 +22,7 @@ class Context(Container):
         io: IO[bytes]
         packing: bool
         unpacking: bool
+        sizing: bool
         env: Container
         root: Optional["Context"]
         hooks: list
@@ -31,10 +32,11 @@ class Context(Container):
         def __str__(self) -> str:
             data = dict(self)
             data["pos"] = self.tell()
-            data["op"] = "packing" if self.packing else "unpacking"
+            data["op"] = "unpacking" if self.unpacking else "packing"
             data.pop("io", None)
             data.pop("packing", None)
             data.pop("unpacking", None)
+            data.pop("sizing", None)
             data.pop("root", None)
             data.pop("tell", None)
             data.pop("seek", None)

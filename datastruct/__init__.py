@@ -14,7 +14,8 @@ from .types import (
     Endianness,
     Hook,
 )
-from .utils.public import datastruct, datastruct_config, datastruct_get_config
+from .utils.config import datastruct_config, datastruct_get_config
+from .utils.public import datastruct, sizeof
 
 __all__ = [
     "Adapter",
@@ -33,4 +34,5 @@ __all__ = [
     "datastruct_config",
     "datastruct_get_config",
     "fields",
+    "sizeof",
 ]
