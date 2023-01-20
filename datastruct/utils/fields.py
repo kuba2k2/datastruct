@@ -92,6 +92,12 @@ def field_get_padding(
         modulus = evaluate(ctx, meta.modulus)
         tell = ctx.G.tell() if meta.absolute else ctx.P.tell()
         length = pad_up(tell, modulus)
+    elif meta.offset:
+        offset = evaluate(ctx, meta.offset)
+        tell = ctx.G.tell() if meta.absolute else ctx.P.tell()
+        if offset < tell:
+            raise ValueError("Padding offset less than current tell() offset")
+        length = offset - tell
     else:
         raise ValueError("Unknown padding type")
     if ctx.G.sizing:

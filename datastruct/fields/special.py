@@ -57,6 +57,24 @@ def align(
     )
 
 
+def alignto(
+    offset: Value[int],
+    absolute: bool = False,
+    *,
+    pattern: bytes = None,
+    check: bool = False,
+):
+    return build_field(
+        ftype=FieldType.PADDING,
+        public=False,
+        # meta
+        offset=offset,
+        absolute=absolute,
+        pattern=pattern,
+        check=check,
+    )
+
+
 def action(_action: Eval[Any], /):
     return build_field(
         ftype=FieldType.ACTION,

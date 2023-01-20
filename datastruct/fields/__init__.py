@@ -18,7 +18,7 @@ from .helper import (
     validate,
     virtual,
 )
-from .special import action, align, hook, padding, seek, skip
+from .special import action, align, alignto, hook, padding, seek, skip
 from .standard import built, field, subfield
 from .wrapper import adapter, cond, repeat, switch
 
@@ -26,6 +26,7 @@ __all__ = [
     "action",
     "adapter",
     "align",
+    "alignto",
     "bitfield",
     "buffer_end",
     "buffer_start",
