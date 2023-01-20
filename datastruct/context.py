@@ -23,7 +23,6 @@ class Context(Container):
         packing: bool
         unpacking: bool
         sizing: bool
-        env: Container
         root: Optional["Context"]
         hooks: list
         tell: Callable[[], int]
@@ -48,6 +47,7 @@ class Context(Container):
         skip: Callable[[int], int]
         i: int
         item: Any
+        kwargs: dict
 
         def __str__(self) -> str:
             data = dict(self)
@@ -61,6 +61,39 @@ class Context(Container):
     G: Global
     P: Params
     self: Any
+
+    def __getattribute__(self, name: str) -> Any:
+        # get value from this Context, fallback to value from 'self.self'
+        try:
+            return super(dict, self).__getattribute__(name)
+        except AttributeError:
+            try:
+                _self = super(dict, self).__getattribute__("self")
+                return _self.__getattribute__(name)
+            except AttributeError:
+                return None
+
+    def __setattr__(self, name: str, value: Any) -> None:
+        try:
+            # set value in 'self.self' if it has the key;
+            # otherwise set it directly in Context
+            _self = super(dict, self).__getattribute__("self")
+            if isinstance(_self, dict):
+                if name in _self:
+                    _self[name] = value
+                else:
+                    super(dict, self).__setattr__(name, value)
+                return
+            _self.__getattribute__(name)
+            _self.__setattr__(name, value)
+        except AttributeError:
+            super(dict, self).__setattr__(name, value)
+
+    def __getitem__(self, name: str) -> Any:
+        return self.__getattribute__(name)
+
+    def __setitem__(self, name: str, value: Any) -> None:
+        self.__setattr__(name, value)
 
     def __str__(self) -> str:
         data = dict(self)

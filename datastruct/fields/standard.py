@@ -17,12 +17,13 @@ def field(fmt: FormatType, *, default=..., default_factory=MISSING):
     )
 
 
-def subfield(*, default_factory=MISSING):
+def subfield(*, default_factory=MISSING, **kwargs):
     # don't allow 'default' for subfields, as they're always mutable
     return build_field(
         ftype=FieldType.FIELD,
         default_factory=default_factory,
         # meta
+        kwargs=kwargs,
     )
 
 

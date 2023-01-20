@@ -56,6 +56,7 @@ class FieldMeta(Container):
     builder: Value[Any]
     always: bool
     adapter: Adapter
+    kwargs: dict
     # SEEK
     offset: Value[int]
     whence: int

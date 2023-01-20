@@ -6,3 +6,4 @@ FMT_ENDIAN = "@=<>!"
 FMT_SPEC = "cbB?hHiIlLqQnNefds"
 ARRAYS = (list, tuple)
 EXCEPTIONS = (ValueError, TypeError, AttributeError, struct.error)
+BYTES = (bytes, bytearray)

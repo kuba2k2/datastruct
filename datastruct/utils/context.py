@@ -1,7 +1,7 @@
 #  Copyright (c) Kuba Szczodrzyński 2023-1-3.
 
 from io import SEEK_CUR, SEEK_SET
-from typing import IO
+from typing import IO, Optional
 
 from ..context import Container, Context
 from ..types import FieldMeta, Hook, V, Value
@@ -18,7 +18,6 @@ def evaluate(ctx: Context, v: Value[V]) -> V:
 
 def build_global_context(
     io: IO[bytes],
-    env: dict,
     packing: bool = False,
     unpacking: bool = False,
     sizing: bool = False,
@@ -28,7 +27,6 @@ def build_global_context(
         packing=packing,
         unpacking=unpacking,
         sizing=sizing,
-        env=Container(env),
         root=None,
         hooks=[],
         # tell the current position, relative to IO start
@@ -38,7 +36,11 @@ def build_global_context(
     )
 
 
-def build_context(glob: Context.Global, parent: Context, **values) -> Context:
+def build_context(
+    glob: Context.Global,
+    parent: Optional[Context],
+    **kwargs,
+) -> Context:
     # create a context with some helpers and passed 'values' (from self)
     io = glob.io
     io_offset = io.tell()
@@ -50,8 +52,10 @@ def build_context(glob: Context.Global, parent: Context, **values) -> Context:
         seek=lambda offset, whence=SEEK_SET: io.seek(offset + io_offset, whence),
         # skip a number of bytes
         skip=lambda length: io.seek(length, SEEK_CUR),
+        # context arguments
+        kwargs=kwargs,
     )
-    ctx = Context(_=parent, G=glob, P=params, **values)
+    ctx = Context(_=parent, G=glob, P=params, **kwargs)
     # set this context as root, if not already set
     if glob.root is None:
         glob.root = ctx

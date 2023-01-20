@@ -7,10 +7,10 @@ from functools import lru_cache
 from io import BytesIO
 from typing import IO, Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
-from .context import Context
+from .context import Container, Context
 from .types import Config, FieldMeta, FieldType, T
 from .utils.config import datastruct_get_config
-from .utils.const import ARRAYS, EXCEPTIONS
+from .utils.const import ARRAYS, BYTES, EXCEPTIONS
 from .utils.context import (
     build_context,
     build_global_context,
@@ -60,7 +60,8 @@ class DataStruct:
     def _write_value(self, ctx: Context, meta: FieldMeta, value: Any) -> None:
         # pack structures directly
         if isinstance(value, DataStruct):
-            value.pack(io=ctx.G.io, parent=ctx)
+            kwargs = {k: evaluate(ctx, v) for k, v in meta.kwargs.items()}
+            value.pack(io=ctx.G.io, parent=ctx, **kwargs)
             return
         # evaluate and validate the format
         fmt = fmt_evaluate(ctx, meta.fmt, self.config().endianness)
@@ -76,7 +77,8 @@ class DataStruct:
     def _sizeof_value(self, ctx: Context, meta: FieldMeta, value: Any) -> None:
         # size structures directly
         if isinstance(value, DataStruct):
-            value.pack(io=ctx.G.io, parent=ctx)
+            kwargs = {k: evaluate(ctx, v) for k, v in meta.kwargs.items()}
+            value.pack(io=ctx.G.io, parent=ctx, **kwargs)
             return
         # evaluate and validate the format
         fmt = fmt_evaluate(ctx, meta.fmt, self.config().endianness)
@@ -213,7 +215,8 @@ class DataStruct:
     def _read_value(cls, ctx: Context, meta: FieldMeta, typ: Type[T]) -> T:
         # unpack structures directly
         if issubclass(typ, DataStruct):
-            return typ.unpack(io=ctx.G.io, parent=ctx)
+            kwargs = {k: evaluate(ctx, v) for k, v in meta.kwargs.items()}
+            return typ.unpack(io=ctx.G.io, parent=ctx, **kwargs)
         # evaluate and validate the format
         fmt = fmt_evaluate(ctx, meta.fmt, cls.config().endianness)
         if isinstance(fmt, int):
@@ -269,7 +272,6 @@ class DataStruct:
             count = evaluate(ctx, meta.count)
             base_field, base_meta = field_get_base(meta)
             items = []
-            ctx[field.name] = items
 
             while count is None or i < count:
                 ctx.P.i = i
@@ -293,7 +295,6 @@ class DataStruct:
             if evaluate(ctx, meta.condition) is False:
                 if meta.if_not is not Ellipsis:
                     value = evaluate(ctx, meta.if_not)
-                    ctx[field.name] = value
                     return value
                 return Ellipsis
             return cls._read_field(ctx, *field_get_base(meta))
@@ -306,33 +307,32 @@ class DataStruct:
     def pack(
         self,
         io: Optional[IO[bytes]] = None,
-        parent: Optional["Context"] = None,
+        parent: Union[Context, "DataStruct", None] = None,
         **kwargs,
     ) -> Optional[bytes]:
-        if io is None:
-            io = BytesIO()
-        if parent and not isinstance(io, SizingIO):
+        sizing = isinstance(io, SizingIO)
+        if isinstance(parent, Context) and not sizing:
             glob = parent.G
         else:
-            glob = build_global_context(
-                io=io,
-                env=kwargs,
-                packing=True,
-                sizing=isinstance(io, SizingIO),
-            )
+            if io is None:
+                io = BytesIO()
+            glob = build_global_context(io, packing=True, sizing=sizing)
+
+        if isinstance(parent, DataStruct):
+            parent_obj = parent
+            fields = parent.fields()
+            parent = build_context(glob, None)
+            parent.self = parent_obj
 
         fields = self.fields()
-        values = {f.name: v for f, m, v in fields if v != Ellipsis}
-        ctx = build_context(glob, parent, **values)
+        ctx = build_context(glob, parent, **kwargs)
         ctx.self = self
         field_name = type(self).__name__
         try:
-            for field, meta, value in fields:
+            for field, meta, _ in fields:
                 field_name = f"{type(self).__name__}.{field.name}"
                 # print(f"Packing {meta.ftype.name} '{field_name}'")
-                value = ctx.get(field.name, value)
-                value = self._write_field(ctx, field, meta, value)
-                ctx[field.name] = value
+                value = self._write_field(ctx, field, meta, ctx[field.name])
                 if value is not Ellipsis and meta.public:
                     setattr(self, field.name, value)
         except EXCEPTIONS as e:
@@ -350,19 +350,24 @@ class DataStruct:
     def unpack(
         cls: Type["DS"],
         io: Union[IO[bytes], bytes],
-        parent: Optional[Context] = None,
+        parent: Union[Context, "DataStruct", None] = None,
         **kwargs,
     ) -> "DS":
-        if isinstance(io, bytes):
-            io = BytesIO(io)
-        if parent:
+        if isinstance(parent, Context):
             glob = parent.G
         else:
-            glob = build_global_context(io, env=kwargs, unpacking=True)
+            if isinstance(io, BYTES):
+                io = BytesIO(io)
+            glob = build_global_context(io, unpacking=True)
+
+        if isinstance(parent, DataStruct):
+            fields = parent.fields()
+            parent = build_context(glob, None)
 
         fields = cls.classfields()
-        values = {}
-        ctx = build_context(glob, parent)
+        values = Container()
+        ctx = build_context(glob, parent, **kwargs)
+        ctx.self = values
         field_name = cls.__name__
         try:
             for field, meta in fields:
@@ -371,7 +376,6 @@ class DataStruct:
                 # validate fields since they weren't validated before
                 field_validate(field, meta)
                 value = cls._read_field(ctx, field, meta)
-                ctx[field.name] = value
                 if value is not Ellipsis and meta.public:
                     values[field.name] = value
             field_name = f"{cls.__name__}()"
@@ -384,7 +388,7 @@ class DataStruct:
 
     def sizeof(
         self,
-        parent: Optional["Context"] = None,
+        parent: Union[Context, "DataStruct", None] = None,
         **kwargs,
     ) -> int:
         io = SizingIO()
