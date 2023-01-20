@@ -6,7 +6,7 @@ from io import BytesIO
 from typing import Any, Callable, Optional, Type, Union
 
 from ..context import Context
-from ..types import Adapter, Eval, FieldType, Hook, T, Value
+from ..types import Adapter, Eval, FieldMeta, FieldType, Hook, T, Value
 from ..utils.context import evaluate
 from ._utils import build_field
 from .special import action, hook
@@ -14,12 +14,19 @@ from .standard import built, field
 from .wrapper import adapter
 
 
-def hook_end(name: str):
-    return build_field(FieldType.HOOK, public=False, hook=name)
+def hook_end(hook: Field):
+    meta: FieldMeta = hook.metadata["datastruct"]
+    return build_field(
+        ftype=FieldType.HOOK,
+        public=False,
+        # meta
+        hook=meta.hook,
+        end=True,
+    )
 
 
 def packing(check: Value[T]) -> Eval[T]:
-    return lambda ctx: check(ctx) if ctx.G.packing else None
+    return lambda ctx: check(ctx) if ctx.G.packing and not ctx.G.sizing else None
 
 
 def unpacking(check: Value[T]) -> Eval[T]:
@@ -80,11 +87,11 @@ def buffer_start(end: Callable[[BytesIO, Context], None]):
         def end(self, ctx: Context) -> None:
             end(self.io, ctx)
 
-    return hook("hook_buffer", Buffer())
+    return hook(Buffer())
 
 
-def buffer_end():
-    return hook_end("hook_buffer")
+def buffer_end(buffer: Field):
+    return hook_end(buffer)
 
 
 def checksum_start(
@@ -107,11 +114,11 @@ def checksum_start(
         def end(self, ctx: Context) -> None:
             ctx.P.hook_checksum = end(self.obj, ctx)
 
-    return hook("hook_checksum", Checksum())
+    return hook(Checksum())
 
 
-def checksum_end():
-    return hook_end("hook_checksum")
+def checksum_end(checksum: Field):
+    return hook_end(checksum)
 
 
 def checksum_field(doc: str):

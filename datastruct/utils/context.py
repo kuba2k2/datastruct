@@ -1,10 +1,10 @@
 #  Copyright (c) Kuba Szczodrzyński 2023-1-3.
 
 from io import SEEK_CUR, SEEK_SET
-from typing import IO, Union
+from typing import IO
 
 from ..context import Container, Context
-from ..types import Hook, V, Value
+from ..types import FieldMeta, Hook, V, Value
 
 
 def evaluate(ctx: Context, v: Value[V]) -> V:
@@ -76,19 +76,16 @@ def ctx_write(ctx: Context, s: bytes) -> int:
     return n
 
 
-def hook_apply(ctx: Context, hook: Union[Hook, str]):
-    if isinstance(hook, Hook):
+def hook_apply(ctx: Context, meta: FieldMeta):
+    hook = meta.hook
+    if not meta.end:
         # add the hook to the list
         evaluate(ctx, hook.init)
         ctx.G.hooks.append(hook)
     else:
-        # remove the latest hook matching this name
-        for h in ctx.G.hooks[::-1]:
-            if h.name != hook:
-                continue
-            ctx.G.hooks.remove(h)
-            evaluate(ctx, h.end)
-            return
+        # remove the hook
+        ctx.G.hooks.remove(hook)
+        evaluate(ctx, hook.end)
 
 
 def hook_do(ctx: Context, action: str, data: V) -> V:

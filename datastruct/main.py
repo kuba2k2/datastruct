@@ -130,7 +130,9 @@ class DataStruct:
             return evaluate(ctx, meta.action)
 
         if meta.ftype == FieldType.HOOK:
-            hook_apply(ctx, meta.hook)
+            if ctx.G.sizing:
+                return Ellipsis
+            hook_apply(ctx, meta)
             return Ellipsis
 
         if meta.ftype == FieldType.REPEAT:
@@ -255,7 +257,7 @@ class DataStruct:
             return evaluate(ctx, meta.action)
 
         if meta.ftype == FieldType.HOOK:
-            hook_apply(ctx, meta.hook)
+            hook_apply(ctx, meta)
             return Ellipsis
 
         if meta.ftype == FieldType.REPEAT:

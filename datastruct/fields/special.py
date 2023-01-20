@@ -85,7 +85,6 @@ def action(_action: Eval[Any], /):
 
 
 def hook(
-    name: str,
     _hook: Hook = None,
     /,
     *,
@@ -104,10 +103,10 @@ def hook(
         _hook.read = read
         _hook.write = write
         _hook.end = end
-    _hook.name = name
     return build_field(
         ftype=FieldType.HOOK,
         public=False,
         # meta
         hook=_hook,
+        end=False,
     )

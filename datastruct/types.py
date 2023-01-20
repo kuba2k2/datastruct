@@ -24,8 +24,6 @@ class Adapter:
 
 
 class Hook:
-    name: str
-
     # fmt: off
     def init(self, ctx: Context) -> None: ...
     def update(self, value: bytes, ctx: Context) -> Optional[bytes]: ...
@@ -71,6 +69,7 @@ class FieldMeta(Container):
     action: Eval[Any]
     # HOOK
     hook: Union[Hook, str]
+    end: bool
     # REPEAT
     base: Field
     count: Value[int]
