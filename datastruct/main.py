@@ -308,6 +308,7 @@ class DataStruct:
             for field, meta, value in fields:
                 field_name = f"{type(self).__name__}.{field.name}"
                 # print(f"Packing {meta.ftype.name} '{field_name}'")
+                value = ctx.get(field.name, value)
                 value = self._write_field(ctx, field, meta, value)
                 ctx[field.name] = value
                 if value is not Ellipsis and meta.public:
