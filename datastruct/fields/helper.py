@@ -33,6 +33,18 @@ def virtual(value: Value[T]):
     )(built(0, builder=value, always=True))
 
 
+def tell():
+    return virtual(lambda ctx: ctx.G.tell())
+
+
+def tell_into(into: str):
+    return action(lambda ctx: setattr(ctx, into, ctx.G.tell()))
+
+
+def const_into(into: str, value: Any):
+    return action(lambda ctx: setattr(ctx, into, value))
+
+
 def probe():
     def _probe(ctx: Context):
         print(f"Probe: {ctx}")
