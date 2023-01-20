@@ -52,15 +52,16 @@ You might also pass a stream (file/BytesIO/etc.) to `pack()` and `unpack()`. Oth
 
 ### Context
 
-Upon starting a pack/unpack operation, a `Context` object is created. The context is a container scoped to the currently processed structure. It's composed of four main elements:
+Upon starting a pack/unpack operation, a `Context` object is created. The context is a container scoped to the currently processed structure. It's composed of the following main elements:
 
 - all values of the current structure - when packing; during unpacking, it contains all values of fields that were already processes (the context "grows")
+- all keyword arguments passed to `pack()`/`unpack()` (for the root context only)
+- all keyword arguments passed to `subfield()` (for child contexts only)
 - `_: Context` - reference to the parent object's context (only when nesting `DataStruct`s)
 - `G` - global context - general-purpose container that is not scoped to the current structure (it's identical for nested structs)
   - `io: IO[bytes]` - the stream being read from/written to
   - `packing: bool` - whether current operation is packing
   - `unpacking: bool` - whether current operation is unpacking
-  - `env: Container` - keyword arguments passed to `pack()`/`unpack()`
   - `root: Context` - context of the topmost structure
   - `tell: () -> int` - function returning the current position in the stream
   - `seek: (offset: int, whence: int) -> int` - function allowing to seek to an absolute offset
