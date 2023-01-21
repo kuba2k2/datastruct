@@ -393,7 +393,6 @@ class DataStruct:
     ) -> int:
         io = SizingIO()
         self.pack(io=io, parent=parent, **kwargs)
-        print("Sizeof", type(self), "returning", io.size, hex(io.size))
         return io.size
 
     def fields(self) -> List[Tuple[Field, FieldMeta, Any]]:
@@ -420,7 +419,7 @@ class DataStruct:
         return dataclasses.asdict(self)
 
     @classmethod
-    @lru_cache
+    @lru_cache()
     def config(cls) -> Config:
         config = Config(datastruct_get_config())
         config.update(getattr(cls, "_CONFIG", {}))

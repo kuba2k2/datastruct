@@ -54,7 +54,6 @@ def switch(key: Value[Any]):
 
 def adapter(
     _adapter: Adapter = None,
-    /,
     *,
     encode: AdapterType = None,
     decode: AdapterType = None,

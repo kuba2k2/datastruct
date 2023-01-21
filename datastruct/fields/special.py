@@ -80,7 +80,7 @@ def alignto(
     )
 
 
-def action(_action: Eval[Any], /):
+def action(_action: Eval[Any]):
     return build_field(
         ftype=FieldType.ACTION,
         public=False,
@@ -91,7 +91,6 @@ def action(_action: Eval[Any], /):
 
 def hook(
     _hook: Hook = None,
-    /,
     *,
     init: Eval[None] = None,
     update: HookType = None,
