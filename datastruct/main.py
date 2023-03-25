@@ -96,6 +96,8 @@ class DataStruct:
         meta: FieldMeta,
         value: Any,
     ) -> Any:
+        ctx.P.self = value
+
         if meta.ftype == FieldType.FIELD:
             # build fields if necessary
             try:
@@ -171,6 +173,7 @@ class DataStruct:
             items_iter = iter(items)
 
             while count is None or i < count:
+                ctx.P.self = value
                 ctx.P.i = i
                 if evaluate(ctx, meta.when) is False:
                     break
@@ -321,11 +324,11 @@ class DataStruct:
         if isinstance(parent, DataStruct):
             parent_obj = parent
             fields = parent.fields()
-            parent = build_context(glob, None)
+            parent = build_context(glob, None, self.config())
             parent.self = parent_obj
 
         fields = self.fields()
-        ctx = build_context(glob, parent, **kwargs)
+        ctx = build_context(glob, parent, self.config(), **kwargs)
         ctx.self = self
         field_name = type(self).__name__
         try:
@@ -362,11 +365,11 @@ class DataStruct:
 
         if isinstance(parent, DataStruct):
             fields = parent.fields()
-            parent = build_context(glob, None)
+            parent = build_context(glob, None, cls.config())
 
         fields = cls.classfields()
         values = Container()
-        ctx = build_context(glob, parent, **kwargs)
+        ctx = build_context(glob, parent, cls.config(), **kwargs)
         ctx.self = values
         field_name = cls.__name__
         try:

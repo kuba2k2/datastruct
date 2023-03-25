@@ -11,7 +11,7 @@ from ..utils.context import evaluate
 from ._utils import build_field
 from .special import action, hook
 from .standard import built, field
-from .wrapper import adapter
+from .wrapper import adapter, repeat
 
 
 def hook_end(hook: Field):
@@ -54,6 +54,47 @@ def const_into(into: str, value: Any):
 
 def eval_into(into: str, value: Value[Any]):
     return action(lambda ctx: setattr(ctx, into, evaluate(ctx, value)))
+
+
+def const(const_value: Any, doc: str = None):
+    class Const(Adapter):
+        def encode(self, value: Any, ctx: Context) -> Any:
+            return self.decode(value, ctx)
+
+        def decode(self, value: Any, ctx: Context) -> Any:
+            if value == const_value:
+                return value
+            if not doc:
+                raise ValueError(f"Const validation failed; ctx={ctx}")
+            raise ValueError(f"Const validation failed at '{doc}'; ctx={ctx}")
+
+    def wrap(base: Field):
+        base.default = const_value
+        return adapter(Const())(base)
+
+    return wrap
+
+
+def string(length: Value[int], *, default: str = ..., padding: bytes = None):
+    class String(Adapter):
+        def encode(self, value: bytes, ctx: Context) -> bytes:
+            return value.ljust(
+                evaluate(ctx, length), padding or ctx.P.config.padding_pattern
+            )
+
+        def decode(self, value: bytes, ctx: Context) -> bytes:
+            return value.rstrip(padding or ctx.P.config.padding_pattern)
+
+    return adapter(String())(field(length, default=default))
+
+
+def varlist(when: Eval[bool]):
+    return repeat(
+        when=lambda ctx: (
+            (ctx.G.packing and ctx.P.i < len(ctx.P.self))
+            or (ctx.G.unpacking and when(ctx))
+        )
+    )
 
 
 def probe():
@@ -140,10 +181,7 @@ def checksum_field(doc: str):
                 raise ValueError(f"Checksum invalid at '{doc}'; {message}")
             return value
 
-    def wrap(base: Field):
-        return adapter(Checksum())(base)
-
-    return wrap
+    return adapter(Checksum())
 
 
 def bitfield(fmt: str, cls: Type[T], default: Union[bytes, int, None] = None):

@@ -42,11 +42,13 @@ class Context(Container):
             return f"({dict2str(data)})"
 
     class Params(Container):
+        config: "Config"
         tell: Callable[[], int]
         seek: Union[Callable[[int], int], Callable[[int, int], int]]
         skip: Callable[[int], int]
         i: int
         item: Any
+        self: Any
         kwargs: dict
 
         def __str__(self) -> str:

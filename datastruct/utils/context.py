@@ -4,7 +4,7 @@ from io import SEEK_CUR, SEEK_SET
 from typing import IO, Optional
 
 from ..context import Container, Context
-from ..types import FieldMeta, Hook, V, Value
+from ..types import Config, FieldMeta, Hook, V, Value
 
 
 def evaluate(ctx: Context, v: Value[V]) -> V:
@@ -39,6 +39,7 @@ def build_global_context(
 def build_context(
     glob: Context.Global,
     parent: Optional[Context],
+    config: Config,
     **kwargs,
 ) -> Context:
     # create a context with some helpers and passed 'values' (from self)
@@ -46,6 +47,8 @@ def build_context(
     io_offset = io.tell()
     # build params container
     params = Context.Params(
+        # current DataStruct's config
+        config=config,
         # tell the current position, relative to struct start
         tell=lambda: io.tell() - io_offset,
         # seek to a position, relative to struct start

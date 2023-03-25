@@ -58,6 +58,7 @@ Upon starting a pack/unpack operation, a `Context` object is created. The contex
 - all keyword arguments passed to `pack()`/`unpack()` (for the root context only)
 - all keyword arguments passed to `subfield()` (for child contexts only)
 - `_: Context` - reference to the parent object's context (only when nesting `DataStruct`s)
+- `self: Any` - the current datastruct - note that it's a `DataStruct` subclass when packing, and a `Container` when unpacking
 - `G` - global context - general-purpose container that is not scoped to the current structure (it's identical for nested structs)
   - `io: IO[bytes]` - the stream being read from/written to
   - `packing: bool` - whether current operation is packing
@@ -66,11 +67,13 @@ Upon starting a pack/unpack operation, a `Context` object is created. The contex
   - `tell: () -> int` - function returning the current position in the stream
   - `seek: (offset: int, whence: int) -> int` - function allowing to seek to an absolute offset
 - `P` - local context - general-purpose container that is different for each nested struct
+  - `config: Config` - current DataStruct's config 
   - `tell: () -> int` - function returning the current position in the current structure (in bytes)
   - `seek: (offset: int, whence: int) -> int` - function allowing to seek to an offset within the current structure
   - `skip: (length: int) -> int` - function allowing to skip `length` bytes
   - `i: int` - (for `repeat()` fields only) index of the current item of the list
   - `item: Any` - (for `repeat()` fields, in `last=` lambda only) item processed right before evaluation
+  - `self: Any` - (packing only) value of the current field
 
 The context is "general-purpose", meaning that the user can write custom values to it. All fields presented above can be accessed by lambda functions - see "Parameter evaluation".
 
