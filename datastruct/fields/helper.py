@@ -88,6 +88,28 @@ def string(length: Value[int], *, default: str = ..., padding: bytes = None):
     return adapter(String())(field(length, default=default))
 
 
+def text(
+    length: Value[int],
+    *,
+    default: str = ...,
+    encoding: str = "utf-8",
+    padding: bytes = None,
+):
+    class Text(Adapter):
+        def encode(self, value: str, ctx: Context) -> bytes:
+            return value.encode(encoding).ljust(
+                evaluate(ctx, length),
+                padding or ctx.P.config.padding_pattern,
+            )
+
+        def decode(self, value: bytes, ctx: Context) -> str:
+            return value.rstrip(
+                padding or ctx.P.config.padding_pattern,
+            ).decode(encoding)
+
+    return adapter(Text())(field(length, default=default))
+
+
 def varlist(when: Eval[bool]):
     return repeat(
         when=lambda ctx: (

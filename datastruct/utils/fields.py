@@ -14,8 +14,6 @@ from .misc import pad_up, repstr
 
 
 def field_encode(v: Any) -> Any:
-    if isinstance(v, str):
-        return v.encode()
     if isinstance(v, int):
         return v
     if isinstance(v, Enum):
@@ -24,8 +22,6 @@ def field_encode(v: Any) -> Any:
 
 
 def field_decode(v: Any, cls: type) -> Any:
-    if issubclass(cls, str):
-        return v.decode()
     if issubclass(cls, Enum):
         return cls(v)
     return v
