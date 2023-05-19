@@ -202,7 +202,14 @@ class DataStruct:
                     break
 
                 if not base_meta.builder:
-                    item = next(items_iter)
+                    try:
+                        item = next(items_iter)
+                    except StopIteration:
+                        raise ValueError(
+                            "No more items to pack! "
+                            "Check the return value of 'when' and 'last'. "
+                            "Perhaps the list is missing the last element?"
+                        )
                 else:
                     item = Ellipsis
                 item = self._write_field(ctx, base_field, base_meta, item)
@@ -226,6 +233,9 @@ class DataStruct:
 
         if meta.ftype == FieldType.COND:
             if evaluate(ctx, meta.condition) is False:
+                if meta.if_not is not Ellipsis:
+                    value = evaluate(ctx, meta.if_not)
+                    return value
                 return Ellipsis
             return self._write_field(ctx, *field_get_base(meta), value)
 
@@ -334,6 +344,7 @@ class DataStruct:
         self,
         io: Optional[IO[bytes]] = None,
         parent: Union[Context, "DataStruct", None] = None,
+        fname: str = None,
         **kwargs,
     ) -> Optional[bytes]:
         sizing = isinstance(io, SizingIO)
@@ -356,11 +367,17 @@ class DataStruct:
         field_name = type(self).__name__
         try:
             for field, meta, _ in fields:
+                if fname is not None and field.name != fname:
+                    continue
+                fname = None
                 field_name = f"{type(self).__name__}.{field.name}"
                 # print(f"Packing {meta.ftype.name} '{field_name}'")
                 value = self._write_field(ctx, field, meta, ctx[field.name])
                 if value is not Ellipsis and meta.public:
                     setattr(self, field.name, value)
+            if fname is not None:
+                # after packing, the field must have been found
+                raise ValueError(f"No such field: {fname}")
         except EXCEPTIONS as e:
             if ctx.G.sizing:
                 suffix = f"; while sizing '{field_name}'"
@@ -414,11 +431,12 @@ class DataStruct:
 
     def sizeof(
         self,
+        fname: str = None,
         parent: Union[Context, "DataStruct", None] = None,
         **kwargs,
     ) -> int:
         io = SizingIO()
-        self.pack(io=io, parent=parent, **kwargs)
+        self.pack(io=io, parent=parent, fname=fname, **kwargs)
         return io.size
 
     def fields(self) -> List[Tuple[Field, FieldMeta, Any]]:
