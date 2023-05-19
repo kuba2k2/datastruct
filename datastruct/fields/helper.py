@@ -94,9 +94,12 @@ def text(
     default: str = ...,
     encoding: str = "utf-8",
     padding: bytes = None,
+    variable: bool = False,
 ):
     class Text(Adapter):
         def encode(self, value: str, ctx: Context) -> bytes:
+            if variable:
+                return value.encode(encoding)
             return value.encode(encoding).ljust(
                 evaluate(ctx, length),
                 padding or ctx.P.config.padding_pattern,
@@ -107,16 +110,36 @@ def text(
                 padding or ctx.P.config.padding_pattern,
             ).decode(encoding)
 
-    return adapter(Text())(field(length, default=default))
-
-
-def varlist(when: Eval[bool]):
-    return repeat(
-        when=lambda ctx: (
-            (ctx.G.packing and ctx.P.i < len(ctx.P.self))
-            or (ctx.G.unpacking and when(ctx))
+    return adapter(Text())(
+        field(
+            lambda ctx: len(ctx.P.self)
+            if variable and ctx.G.packing
+            else evaluate(ctx, length),
+            default=default,
         )
     )
+
+
+def vartext(length: Value[int], **kwargs):
+    return text(length, variable=True, **kwargs)
+
+
+def varlist(count: Value[int] = None, *, when: Eval[bool] = None):
+    if count is not None:
+        return repeat(
+            when=lambda ctx: (
+                (ctx.G.packing and ctx.P.i < len(ctx.P.self))
+                or (ctx.G.unpacking and ctx.P.i < evaluate(ctx, count))
+            )
+        )
+    if when is not None:
+        return repeat(
+            when=lambda ctx: (
+                (ctx.G.packing and ctx.P.i < len(ctx.P.self))
+                or (ctx.G.unpacking and when(ctx))
+            )
+        )
+    raise TypeError("Either count or when has to be specified")
 
 
 def probe():
