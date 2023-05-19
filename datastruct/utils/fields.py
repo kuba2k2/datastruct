@@ -31,6 +31,8 @@ def field_get_type(field: Field) -> Tuple[type, Optional[type]]:
     field_type = field.type
     if field_type is Ellipsis:
         return field_type, None
+    if field_type is Any:
+        return None, None
     if hasattr(field_type, "__origin__"):
         field_type = field.type.__origin__
     if not isinstance(field_type, type):

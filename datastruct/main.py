@@ -27,6 +27,7 @@ from .utils.fields import (
     field_get_default,
     field_get_meta,
     field_get_padding,
+    field_get_type,
     field_switch_base,
     field_validate,
 )
@@ -39,6 +40,28 @@ class DataStruct:
     def __post_init__(self) -> None:
         for field, meta, value in self.fields():
             field_validate(field, meta)
+
+            if value != Ellipsis:
+                # try to map simple default values
+                field_type, _ = field_get_type(field)
+                if field_type is not None:
+                    value = field_decode(value, field_type)
+                    if not isinstance(value, field_type):
+                        if meta.adapter:
+                            # try to adapt default values
+                            try:
+                                value = meta.adapter.decode(value, None)
+                            except Exception:
+                                raise ValueError(
+                                    f"Couldn't build the default value of {field.name} - the adapter "
+                                    "might be requiring the context. Pass 'default' value "
+                                    "resulting *after* applying the adapter"
+                                )
+                        else:
+                            raise TypeError(
+                                f"Wrong field type - expected {field_type}, found default {type(value)}"
+                            )
+                    self.__setattr__(field.name, value)
 
             # accept special fields and those already having a value
             if value != Ellipsis or not meta.public:

@@ -75,8 +75,8 @@ def const(const_value: Any, doc: str = None):
     return wrap
 
 
-def string(length: Value[int], *, default: str = ..., padding: bytes = None):
-    class String(Adapter):
+def bytestr(length: Value[int], *, default: bytes = ..., padding: bytes = None):
+    class ByteStr(Adapter):
         def encode(self, value: bytes, ctx: Context) -> bytes:
             return value.ljust(
                 evaluate(ctx, length), padding or ctx.P.config.padding_pattern
@@ -85,7 +85,7 @@ def string(length: Value[int], *, default: str = ..., padding: bytes = None):
         def decode(self, value: bytes, ctx: Context) -> bytes:
             return value.rstrip(padding or ctx.P.config.padding_pattern)
 
-    return adapter(String())(field(length, default=default))
+    return adapter(ByteStr())(field(length, default=default))
 
 
 def text(
