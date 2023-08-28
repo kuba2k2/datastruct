@@ -3,8 +3,8 @@
 from io import SEEK_CUR, SEEK_SET
 from typing import IO, Optional
 
-from ..context import Container, Context
-from ..types import Config, FieldMeta, Hook, V, Value
+from ..context import Context
+from ..types import Config, FieldMeta, V, Value
 
 
 def evaluate(ctx: Context, v: Value[V]) -> V:
