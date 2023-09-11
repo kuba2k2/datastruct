@@ -47,3 +47,28 @@ class SizingIO(IO[bytes], ABC):
     def add(self, n: int):
         self.pos += n
         self.size = max(self.pos, self.size)
+
+
+class MemoryIO(IO[bytes], ABC):
+    def __init__(self, address: int):
+        self.start = address
+        self.addr = address
+
+    def tell(self) -> int:
+        return self.addr - self.start
+
+    def seek(self, offset: int, whence: int = SEEK_SET) -> int:
+        if whence == SEEK_SET:
+            self.addr = self.start + offset
+        elif whence == SEEK_CUR:
+            self.addr += offset
+        elif whence == SEEK_END:
+            raise NotImplementedError("No size")
+        return self.addr
+
+    def read(self, n: int = None) -> bytes:
+        from ctypes import c_char
+
+        data = (c_char * n).from_address(self.addr)
+        self.addr += n
+        return data.raw
