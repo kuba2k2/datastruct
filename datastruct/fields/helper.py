@@ -5,9 +5,10 @@ from dataclasses import Field, is_dataclass
 from io import BytesIO
 from typing import Any, Callable, Optional, Type, Union
 
-from ..types import Adapter, Context, Eval, Hook, T, Value
+from ..types import Adapter, Context, Eval, Hook, IOHook, T, Value
 from ..utils.context import evaluate
-from .special import action, hook, hook_end
+from ..utils.misc import pad_up
+from .special import action, hook, hook_end, io, io_end
 from .standard import built, field
 from .wrapper import adapter, repeat
 
@@ -243,3 +244,77 @@ def bitfield(fmt: str, cls: Type[T], default: Union[bytes, int, None] = None):
             default_factory=lambda: decode(default),
         )
     )
+
+
+def crypt(
+    block_size: int,
+    init: Optional[Callable[[Context], T]],
+    decrypt: Optional[Callable[[bytes, T, Context], bytes]],
+    encrypt: Optional[Callable[[bytes, T, Context], bytes]],
+    end: Optional[Callable[[T, Context], Any]] = None,
+    block_single: bool = False,
+):
+    class Crypt(IOHook):
+        obj: T
+        read_buf: bytes = b""
+        write_buf: bytes = b""
+
+        def init(self, ctx: Context) -> None:
+            if init:
+                self.obj = init(ctx)
+
+        def read(self, ctx: Context, n: int) -> bytes:
+            if not decrypt:
+                return ctx.G.io.read(n)
+            ret = b""
+            while n:
+                if not self.read_buf:
+                    if block_single:
+                        read_len = block_size
+                    else:
+                        read_len = n + pad_up(n, block_size)
+                    self.read_buf = ctx.G.io.read(read_len)
+                    if not self.read_buf:
+                        return ret  # not enough data read; fail already
+                    self.read_buf = decrypt(self.read_buf, self.obj, ctx)
+                while self.read_buf and n:
+                    chunk = self.read_buf[0:n]
+                    self.read_buf = self.read_buf[n:]
+                    ret += chunk
+                    n -= len(chunk)
+            return ret
+
+        def write(self, ctx: Context, s: bytes) -> int:
+            if not encrypt:
+                return ctx.G.io.write(s)
+            self.write_buf += s
+            while len(self.write_buf) >= block_size:
+                if block_single:
+                    write_len = block_size
+                else:
+                    write_len = len(self.write_buf)
+                    write_len = write_len - (write_len % block_size)
+                chunk = self.write_buf[0:write_len]
+                self.write_buf = self.write_buf[write_len:]
+                chunk = encrypt(chunk, self.obj, ctx)
+                ctx.G.io.write(chunk)
+            return len(s)
+
+        def seek(self, ctx: Context, offset: int, whence: int) -> int:
+            raise NotImplementedError("Seeking with crypt() is not implemented yet")
+
+        def tell(self, ctx: Context) -> int:
+            return ctx.G.io.tell() - len(self.read_buf) + len(self.write_buf)
+
+        def end(self, ctx: Context) -> None:
+            if end:
+                end(self.obj, ctx)
+            self.obj = None
+            self.read_buf = b""
+            self.write_buf = b""
+
+    return io(Crypt())
+
+
+def crypt_end(crypt_field: Field):
+    return io_end(crypt_field)
