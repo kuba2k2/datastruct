@@ -2,8 +2,7 @@
 
 from typing import Union
 
-from ..context import Context
-from ..types import Endianness, FormatType, Value
+from ..types import Context, Endianness, FormatType, Value
 from .const import FMT_ENDIAN, FMT_SPEC
 from .context import evaluate
 

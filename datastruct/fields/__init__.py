@@ -11,7 +11,6 @@ from .helper import (
     const,
     const_into,
     eval_into,
-    hook_end,
     packing,
     probe,
     tell,
@@ -23,7 +22,7 @@ from .helper import (
     vartext,
     virtual,
 )
-from .special import action, align, alignto, hook, padding, seek, skip
+from .special import action, align, alignto, hook, hook_end, padding, seek, skip
 from .standard import built, field, subfield
 from .wrapper import adapter, cond, repeat, switch
 

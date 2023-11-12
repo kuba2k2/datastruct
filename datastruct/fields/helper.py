@@ -5,8 +5,7 @@ from dataclasses import Field, is_dataclass
 from io import BytesIO
 from typing import Any, Callable, Optional, Type, Union
 
-from ..context import Context
-from ..types import Adapter, Eval, Hook, T, Value
+from ..types import Adapter, Context, Eval, Hook, T, Value
 from ..utils.context import evaluate
 from .special import action, hook, hook_end
 from .standard import built, field

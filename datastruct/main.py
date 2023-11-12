@@ -7,8 +7,7 @@ from functools import lru_cache
 from io import BytesIO
 from typing import IO, Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
-from .context import Container, Context
-from .types import Config, FieldMeta, FieldType, T
+from .types import Config, Container, Context, FieldMeta, FieldType, T
 from .utils.config import datastruct_get_config
 from .utils.const import ARRAYS, BYTES, EXCEPTIONS
 from .utils.context import (

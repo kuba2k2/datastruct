@@ -2,9 +2,8 @@
 
 from typing import Optional, Sized
 
-from ..context import Context
 from ..main import DataStruct
-from ..types import Endianness
+from ..types import Context, Endianness
 from .const import ARRAYS
 
 

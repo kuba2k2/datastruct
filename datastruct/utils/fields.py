@@ -5,8 +5,7 @@ from enum import Enum
 from io import SEEK_CUR
 from typing import Any, Optional, Tuple
 
-from ..context import Context
-from ..types import Config, FieldMeta, FieldType
+from ..types import Config, Context, FieldMeta, FieldType
 from .const import ARRAYS
 from .context import evaluate
 from .fmt import fmt_check

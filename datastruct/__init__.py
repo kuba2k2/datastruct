@@ -1,7 +1,6 @@
 #  Copyright (c) Kuba Szczodrzyński 2023-1-3.
 
 from . import fields
-from .context import Container, Context
 from .main import DataStruct
 from .types import (
     BIG,
@@ -11,6 +10,8 @@ from .types import (
     NETWORK,
     Adapter,
     Config,
+    Container,
+    Context,
     Endianness,
     Hook,
 )
