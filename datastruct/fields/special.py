@@ -1,9 +1,10 @@
 #  Copyright (c) Kuba Szczodrzyński 2023-1-7.
 
+from dataclasses import Field
 from io import SEEK_CUR, SEEK_SET
 from typing import Any
 
-from ..types import Eval, FieldType, Hook, HookType, Value
+from ..types import Eval, FieldMeta, FieldType, Hook, HookType, Value
 from ._utils import build_field
 
 
@@ -113,4 +114,15 @@ def hook(
         # meta
         hook=_hook,
         end=False,
+    )
+
+
+def hook_end(hook_field: Field):
+    meta: FieldMeta = hook_field.metadata["datastruct"]
+    return build_field(
+        ftype=FieldType.HOOK,
+        public=False,
+        # meta
+        hook=meta.hook,
+        end=True,
     )

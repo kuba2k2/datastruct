@@ -6,23 +6,11 @@ from io import BytesIO
 from typing import Any, Callable, Optional, Type, Union
 
 from ..context import Context
-from ..types import Adapter, Eval, FieldMeta, FieldType, Hook, T, Value
+from ..types import Adapter, Eval, Hook, T, Value
 from ..utils.context import evaluate
-from ._utils import build_field
-from .special import action, hook
+from .special import action, hook, hook_end
 from .standard import built, field
 from .wrapper import adapter, repeat
-
-
-def hook_end(hook: Field):
-    meta: FieldMeta = hook.metadata["datastruct"]
-    return build_field(
-        ftype=FieldType.HOOK,
-        public=False,
-        # meta
-        hook=meta.hook,
-        end=True,
-    )
 
 
 def packing(check: Value[T]) -> Eval[T]:
