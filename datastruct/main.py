@@ -17,6 +17,7 @@ from .utils.context import (
     ctx_write,
     evaluate,
     hook_apply,
+    io_apply,
 )
 from .utils.fields import (
     field_decode,
@@ -161,6 +162,12 @@ class DataStruct:
             hook_apply(ctx, meta)
             return Ellipsis
 
+        if meta.ftype == FieldType.IO:
+            if ctx.G.sizing:
+                return Ellipsis
+            io_apply(ctx, meta)
+            return Ellipsis
+
         if meta.ftype == FieldType.REPEAT:
             # repeat() field - value type must be List
             if not isinstance(value, ARRAYS):
@@ -296,6 +303,10 @@ class DataStruct:
 
         if meta.ftype == FieldType.HOOK:
             hook_apply(ctx, meta)
+            return Ellipsis
+
+        if meta.ftype == FieldType.IO:
+            io_apply(ctx, meta)
             return Ellipsis
 
         if meta.ftype == FieldType.REPEAT:

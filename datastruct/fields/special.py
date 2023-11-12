@@ -4,7 +4,19 @@ from dataclasses import Field
 from io import SEEK_CUR, SEEK_SET
 from typing import Any
 
-from ..types import Eval, FieldMeta, FieldType, Hook, HookType, Value
+from ..types import (
+    Eval,
+    FieldMeta,
+    FieldType,
+    Hook,
+    HookType,
+    IOHook,
+    ReadType,
+    SeekType,
+    TellType,
+    Value,
+    WriteType,
+)
 from ._utils import build_field
 
 
@@ -124,5 +136,45 @@ def hook_end(hook_field: Field):
         public=False,
         # meta
         hook=meta.hook,
+        end=True,
+    )
+
+
+def io(
+    _io: IOHook = None,
+    *,
+    init: Eval[None] = None,
+    read: ReadType = None,
+    write: WriteType = None,
+    seek: SeekType = None,
+    tell: TellType = None,
+    end: Eval[None] = None,
+):
+    if [_io, init or read or write or seek or tell or end].count(None) != 1:
+        raise ValueError("Either 'io' or at least one inline lambda has to be set")
+    if not _io:
+        _io = Hook()
+        _io.init = init or _io.init
+        _io.read = read or _io.read
+        _io.write = write or _io.write
+        _io.seek = seek or _io.seek
+        _io.tell = tell or _io.tell
+        _io.end = end or _io.end
+    return build_field(
+        ftype=FieldType.IO,
+        public=False,
+        # meta
+        io=_io,
+        end=False,
+    )
+
+
+def io_end(io_field: Field):
+    meta: FieldMeta = io_field.metadata["datastruct"]
+    return build_field(
+        ftype=FieldType.IO,
+        public=False,
+        # meta
+        io=meta.io,
         end=True,
     )

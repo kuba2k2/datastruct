@@ -22,7 +22,18 @@ from .helper import (
     vartext,
     virtual,
 )
-from .special import action, align, alignto, hook, hook_end, padding, seek, skip
+from .special import (
+    action,
+    align,
+    alignto,
+    hook,
+    hook_end,
+    io,
+    io_end,
+    padding,
+    seek,
+    skip,
+)
 from .standard import built, field, subfield
 from .wrapper import adapter, cond, repeat, switch
 
@@ -46,6 +57,8 @@ __all__ = [
     "field",
     "hook",
     "hook_end",
+    "io",
+    "io_end",
     "packing",
     "padding",
     "probe",

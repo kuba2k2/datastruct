@@ -22,7 +22,7 @@ class Container(dict):
 class Context(Container):
     class Global(Container):
         io: IO[bytes]
-        io_hook: "IOHook"
+        io_hook: IO[bytes]
         packing: bool
         unpacking: bool
         sizing: bool
@@ -113,6 +113,10 @@ Value = Union[Eval[V], V]
 FormatType = Value[Union[str, int]]
 AdapterType = Callable[[Any, Context], Any]
 HookType = Callable[[bytes, Context], Optional[bytes]]
+ReadType = Callable[[Context, int], bytes]
+WriteType = Callable[[Context, bytes], int]
+SeekType = Callable[[Context, int, int], int]
+TellType = Callable[[Context], int]
 
 
 class Adapter:
@@ -132,6 +136,26 @@ class Hook:
     # fmt: on
 
 
+class IOHook:
+    def init(self, ctx: Context) -> None:
+        return None
+
+    def read(self, ctx: Context, n: int) -> bytes:
+        return ctx.G.io.read(n)
+
+    def write(self, ctx: Context, s: bytes) -> int:
+        return ctx.G.io.write(s)
+
+    def seek(self, ctx: Context, offset: int, whence: int) -> int:
+        return ctx.G.io.seek(offset, whence)
+
+    def tell(self, ctx: Context) -> int:
+        return ctx.G.io.tell()
+
+    def end(self, ctx: Context) -> None:
+        return None
+
+
 class FieldType(Enum):
     # standard fields
     FIELD = auto()  # field(), subfield(), built(), adapter()
@@ -140,6 +164,7 @@ class FieldType(Enum):
     PADDING = auto()  # padding(), align()
     ACTION = auto()  # action()
     HOOK = auto()  # hook()
+    IO = auto()  # io()
     # wrapper fields
     REPEAT = auto()  # repeat()
     COND = auto()  # cond()
@@ -170,6 +195,8 @@ class FieldMeta(Container):
     # HOOK
     hook: Union[Hook, str]
     end: bool
+    # IO
+    io: IOHook
     # REPEAT
     base: Field
     count: Value[int]
