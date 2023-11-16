@@ -22,7 +22,6 @@ class Container(dict):
 class Context(Container):
     class Global(Container):
         io: IO[bytes]
-        io_hook: IO[bytes]
         packing: bool
         unpacking: bool
         sizing: bool
@@ -113,10 +112,10 @@ Value = Union[Eval[V], V]
 FormatType = Value[Union[str, int]]
 AdapterType = Callable[[Any, Context], Any]
 HookType = Callable[[bytes, Context], Optional[bytes]]
-ReadType = Callable[[Context, int], bytes]
-WriteType = Callable[[Context, bytes], int]
-SeekType = Callable[[Context, int, int], int]
-TellType = Callable[[Context], int]
+ReadType = Callable[[int], bytes]
+WriteType = Callable[[bytes], int]
+SeekType = Callable[[int, int], int]
+TellType = Callable[[], int]
 
 
 class Adapter:
@@ -137,20 +136,26 @@ class Hook:
 
 
 class IOHook:
+    ctx: Optional[Context]
+    io_read: Optional[ReadType]
+    io_write: Optional[WriteType]
+    io_seek: Optional[SeekType]
+    io_tell: Optional[TellType]
+
     def init(self, ctx: Context) -> None:
         return None
 
-    def read(self, ctx: Context, n: int) -> bytes:
-        return ctx.G.io.read(n)
+    def read(self, n: int) -> bytes:
+        return self.io_read(n)
 
-    def write(self, ctx: Context, s: bytes) -> int:
-        return ctx.G.io.write(s)
+    def write(self, s: bytes) -> int:
+        return self.io_write(s)
 
-    def seek(self, ctx: Context, offset: int, whence: int) -> int:
-        return ctx.G.io.seek(offset, whence)
+    def seek(self, offset: int, whence: int) -> int:
+        return self.io_seek(offset, whence)
 
-    def tell(self, ctx: Context) -> int:
-        return ctx.G.io.tell()
+    def tell(self) -> int:
+        return self.io_tell()
 
     def end(self, ctx: Context) -> None:
         return None

@@ -1,22 +1,11 @@
 #  Copyright (c) Kuba Szczodrzyński 2023-1-7.
 
 from dataclasses import Field
+from functools import partial
 from io import SEEK_CUR, SEEK_SET
-from typing import Any
+from typing import Any, Callable
 
-from ..types import (
-    Eval,
-    FieldMeta,
-    FieldType,
-    Hook,
-    HookType,
-    IOHook,
-    ReadType,
-    SeekType,
-    TellType,
-    Value,
-    WriteType,
-)
+from ..types import Eval, FieldMeta, FieldType, Hook, HookType, IOHook, Value
 from ._utils import build_field
 
 
@@ -144,21 +133,21 @@ def io(
     _io: IOHook = None,
     *,
     init: Eval[None] = None,
-    read: ReadType = None,
-    write: WriteType = None,
-    seek: SeekType = None,
-    tell: TellType = None,
+    read: Callable[[IOHook, int], bytes] = None,
+    write: Callable[[IOHook, bytes], int] = None,
+    seek: Callable[[IOHook, int, int], int] = None,
+    tell: Callable[[IOHook], int] = None,
     end: Eval[None] = None,
 ):
     if [_io, init or read or write or seek or tell or end].count(None) != 1:
         raise ValueError("Either 'io' or at least one inline lambda has to be set")
     if not _io:
-        _io = Hook()
+        _io = IOHook()
         _io.init = init or _io.init
-        _io.read = read or _io.read
-        _io.write = write or _io.write
-        _io.seek = seek or _io.seek
-        _io.tell = tell or _io.tell
+        _io.read = read and partial(read, _io) or _io.read
+        _io.write = write and partial(write, _io) or _io.write
+        _io.seek = seek and partial(seek, _io) or _io.seek
+        _io.tell = tell and partial(tell, _io) or _io.tell
         _io.end = end or _io.end
     return build_field(
         ftype=FieldType.IO,

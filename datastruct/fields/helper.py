@@ -262,10 +262,12 @@ def crypt(
         def init(self, ctx: Context) -> None:
             if init:
                 self.obj = init(ctx)
+            self.read_buf = b""
+            self.write_buf = b""
 
-        def read(self, ctx: Context, n: int) -> bytes:
+        def read(self, n: int) -> bytes:
             if not decrypt:
-                return ctx.G.io.read(n)
+                return self.io_read(n)
             ret = b""
             while n:
                 if not self.read_buf:
@@ -273,10 +275,10 @@ def crypt(
                         read_len = block_size
                     else:
                         read_len = n + pad_up(n, block_size)
-                    self.read_buf = ctx.G.io.read(read_len)
+                    self.read_buf = self.io_read(read_len)
                     if not self.read_buf:
                         return ret  # not enough data read; fail already
-                    self.read_buf = decrypt(self.read_buf, self.obj, ctx)
+                    self.read_buf = decrypt(self.read_buf, self.obj, self.ctx)
                 while self.read_buf and n:
                     chunk = self.read_buf[0:n]
                     self.read_buf = self.read_buf[n:]
@@ -284,9 +286,9 @@ def crypt(
                     n -= len(chunk)
             return ret
 
-        def write(self, ctx: Context, s: bytes) -> int:
+        def write(self, s: bytes) -> int:
             if not encrypt:
-                return ctx.G.io.write(s)
+                return self.io_write(s)
             self.write_buf += s
             while len(self.write_buf) >= block_size:
                 if block_single:
@@ -296,15 +298,15 @@ def crypt(
                     write_len = write_len - (write_len % block_size)
                 chunk = self.write_buf[0:write_len]
                 self.write_buf = self.write_buf[write_len:]
-                chunk = encrypt(chunk, self.obj, ctx)
-                ctx.G.io.write(chunk)
+                chunk = encrypt(chunk, self.obj, self.ctx)
+                self.io_write(chunk)
             return len(s)
 
-        def seek(self, ctx: Context, offset: int, whence: int) -> int:
+        def seek(self, offset: int, whence: int) -> int:
             raise NotImplementedError("Seeking with crypt() is not implemented yet")
 
-        def tell(self, ctx: Context) -> int:
-            return ctx.G.io.tell() - len(self.read_buf) + len(self.write_buf)
+        def tell(self) -> int:
+            return self.io_tell() - len(self.read_buf) + len(self.write_buf)
 
         def end(self, ctx: Context) -> None:
             if end:
