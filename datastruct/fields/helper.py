@@ -5,6 +5,7 @@ from dataclasses import Field, is_dataclass
 from io import BytesIO
 from typing import Any, Callable, Optional, Type, Union
 
+from ..main import DataStruct
 from ..types import Adapter, Context, Eval, Hook, IOHook, T, Value
 from ..utils.context import evaluate
 from ..utils.misc import pad_up
@@ -52,9 +53,10 @@ def const(const_value: Any, doc: str = None):
         def decode(self, value: Any, ctx: Context) -> Any:
             if value == const_value:
                 return value
+            message = f"read {value}; expected {const_value}"
             if not doc:
-                raise ValueError(f"Const validation failed; ctx={ctx}")
-            raise ValueError(f"Const validation failed at '{doc}'; ctx={ctx}")
+                raise ValueError(f"Const validation failed; {message}")
+            raise ValueError(f"Const validation failed at '{doc}'; {message}")
 
     def wrap(base: Field):
         base.default = const_value
@@ -141,8 +143,8 @@ def validate(check: Eval[bool], doc: str = None):
     def _validate(ctx: Context):
         if not check(ctx):
             if not doc:
-                raise ValueError(f"Validation failed; ctx={ctx}")
-            raise ValueError(f"Validation failed at '{doc}'; ctx={ctx}")
+                raise ValueError(f"Validation failed")
+            raise ValueError(f"Validation failed at '{doc}'")
 
     return action(_validate)
 
@@ -168,13 +170,24 @@ def buffer_end(buffer: Field):
     return hook_end(buffer)
 
 
+def _checksum_validate(value: Any, calc: Any, doc: str):
+    if value != calc:
+        message = f"read {value}; calculated {calc}"
+        if not doc:
+            raise ValueError(f"Checksum invalid; {message}")
+        raise ValueError(f"Checksum invalid at '{doc}'; {message}")
+
+
 def checksum_start(
     init: Callable[[Context], T],
     update: Callable[[bytes, T, Context], Optional[T]],
     end: Callable[[T, Context], Any],
+    *,
+    target: Any = None,
 ):
     class Checksum(Hook):
         obj: T
+        target: Any
 
         def init(self, ctx: Context) -> None:
             self.obj = init(ctx)
@@ -187,8 +200,18 @@ def checksum_start(
 
         def end(self, ctx: Context) -> None:
             ctx.P.hook_checksum = end(self.obj, ctx)
+            if "hook_checksum_pre" in ctx.P:
+                # validate checksum_field() read before data
+                _checksum_validate(
+                    value=ctx.P.hook_checksum_pre,
+                    calc=ctx.P.hook_checksum,
+                    doc=ctx.P.hook_checksum_doc,
+                )
 
-    return hook(Checksum())
+    hook_obj = Checksum()
+    # save target checksum_field() if before data
+    hook_obj.target = target
+    return hook(hook_obj)
 
 
 def checksum_end(checksum: Field):
@@ -196,25 +219,87 @@ def checksum_end(checksum: Field):
 
 
 def checksum_field(doc: str):
+    target: Field
+
     class Checksum(Adapter):
         def encode(self, value: Any, ctx: Context) -> Any:
             if "hook_checksum" not in ctx.P:
-                raise ValueError("Add a checksum_end() field first")
+                # checksum before data - pack data and calculate now
+                ds: DataStruct = ctx.self
+                start = None
+                names = []
+                end = None
+                data_pos = 0
+
+                # find checksum_start() and checksum_end()
+                # list any data fields in between
+                for field, meta, _ in ds.fields():
+                    if getattr(meta.hook, "target", None) == target:
+                        # checksum_start()/_end() field found
+                        if meta.end:
+                            end = field.name
+                            break
+                        start = field.name
+                        names = []
+                        continue
+                    if start:
+                        names.append(field.name)
+                    else:
+                        # calculate struct-relative offset of data start
+                        data_pos += ds.sizeof(field.name)
+
+                # validate search results
+                if not start:
+                    raise ValueError("Pass target=<checksum field> to checksum_start()")
+                if not names:
+                    raise ValueError("Checksum data fields not found")
+                if not end:
+                    raise ValueError("checksum_end() field not found")
+
+                # list all fields to include in packing
+                # include checksum start & end
+                names = [start] + names + [end]
+                # output context parameter
+                ctx_out = []
+                # create a dummy IO that can tell() the correct absolute position
+                padding = BytesIO()
+                padding.seek(ctx.G.io.tell())
+                # pack fields into the context
+                ds.pack(
+                    io=padding,
+                    field_names=names,
+                    ctx_out=ctx_out,
+                    # add a fake offset to account for partial field packing
+                    tell_offset=data_pos,
+                    **ctx.P.kwargs,
+                )
+                # return calculation made by checksum_end()
+                return ctx_out[0].P.hook_checksum
+
             # writing - return the valid checksum
             return ctx.P.hook_checksum
 
         def decode(self, value: Any, ctx: Context) -> Any:
+            # reading
             if "hook_checksum" not in ctx.P:
-                raise ValueError("Add a checksum_end() field first")
-            # reading - validate the checksum
-            if value != ctx.P.hook_checksum:
-                message = f"read {value}; calculated {ctx.P.hook_checksum}"
-                if not doc:
-                    raise ValueError(f"Checksum invalid; {message}")
-                raise ValueError(f"Checksum invalid at '{doc}'; {message}")
+                # checksum before data - schedule for checksum_end()
+                ctx.P.hook_checksum_doc = doc
+                ctx.P.hook_checksum_pre = value
+                return value
+            # validate the checksum
+            _checksum_validate(
+                value=value,
+                calc=ctx.P.hook_checksum,
+                doc=doc,
+            )
             return value
 
-    return adapter(Checksum())
+    def wrap(base: Field):
+        nonlocal target
+        target = base
+        return adapter(Checksum())(base)
+
+    return wrap
 
 
 def bitfield(fmt: str, cls: Type[T], default: Union[bytes, int, None] = None):
