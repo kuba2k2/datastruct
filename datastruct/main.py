@@ -394,7 +394,7 @@ class DataStruct:
                 field_found = True
                 field_name = f"{type(self).__name__}.{field.name}"
                 # print(f"Packing {meta.ftype.name} '{field_name}'")
-                value = self._write_field(ctx, field, meta, ctx[field.name])
+                value = self._write_field(ctx, field, meta, getattr(self, field.name))
                 if value is not Ellipsis and meta.public:
                     setattr(self, field.name, value)
             if not field_found:
