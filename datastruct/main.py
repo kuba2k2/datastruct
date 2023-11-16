@@ -353,8 +353,10 @@ class DataStruct:
     def pack(
         self,
         io: Optional[IO[bytes]] = None,
+        field_names: Union[str, List[str]] = None,
         parent: Union[Context, "DataStruct", None] = None,
-        fname: str = None,
+        ctx_out: List[Context] = None,
+        tell_offset: int = 0,
         **kwargs,
     ) -> Optional[bytes]:
         sizing = isinstance(io, SizingIO)
@@ -371,23 +373,33 @@ class DataStruct:
             parent = build_context(glob, None, self.config())
             parent.self = parent_obj
 
+        if not field_names:
+            field_names = []
+        if isinstance(field_names, str):
+            field_names = [field_names]
+
         fields = self.fields()
         ctx = build_context(glob, parent, self.config(), **kwargs)
         ctx.self = self
+        if ctx_out is not None:
+            ctx_out.append(ctx)
+        if tell_offset:
+            ctx.P.seek(tell_offset)
         field_name = type(self).__name__
         try:
+            field_found = not field_names
             for field, meta, _ in fields:
-                if fname is not None and field.name != fname:
+                if field_names and field.name not in field_names:
                     continue
-                fname = None
+                field_found = True
                 field_name = f"{type(self).__name__}.{field.name}"
                 # print(f"Packing {meta.ftype.name} '{field_name}'")
                 value = self._write_field(ctx, field, meta, ctx[field.name])
                 if value is not Ellipsis and meta.public:
                     setattr(self, field.name, value)
-            if fname is not None:
+            if not field_found:
                 # after packing, the field must have been found
-                raise ValueError(f"No such field: {fname}")
+                raise ValueError(f"No such field(s): {field_names}")
         except EXCEPTIONS as e:
             if ctx.G.sizing:
                 suffix = f"; while sizing '{field_name}'"
@@ -404,6 +416,7 @@ class DataStruct:
         cls: Type["DS"],
         io: Union[IO[bytes], bytes],
         parent: Union[Context, "DataStruct", None] = None,
+        ctx_out: List[Context] = None,
         **kwargs,
     ) -> "DS":
         if isinstance(parent, Context):
@@ -421,6 +434,8 @@ class DataStruct:
         values = Container()
         ctx = build_context(glob, parent, cls.config(), **kwargs)
         ctx.self = values
+        if ctx_out is not None:
+            ctx_out.append(ctx)
         field_name = cls.__name__
         try:
             for field, meta in fields:
@@ -441,12 +456,21 @@ class DataStruct:
 
     def sizeof(
         self,
-        fname: str = None,
+        field_names: Union[str, List[str]] = None,
         parent: Union[Context, "DataStruct", None] = None,
+        ctx_out: List[Context] = None,
+        tell_offset: int = 0,
         **kwargs,
     ) -> int:
         io = SizingIO()
-        self.pack(io=io, parent=parent, fname=fname, **kwargs)
+        self.pack(
+            io=io,
+            field_names=field_names,
+            parent=parent,
+            ctx_out=ctx_out,
+            tell_offset=tell_offset,
+            **kwargs,
+        )
         return io.size
 
     def fields(self) -> List[Tuple[Field, FieldMeta, Any]]:
