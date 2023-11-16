@@ -99,6 +99,7 @@ def hook(
     read: HookType = None,
     write: HookType = None,
     end: Eval[None] = None,
+    io_level: bool = True,
 ):
     if [_hook, init or update or read or write or end].count(None) != 1:
         raise ValueError("Either 'hook' or at least one inline lambda has to be set")
@@ -109,6 +110,16 @@ def hook(
         _hook.read = read
         _hook.write = write
         _hook.end = end
+    if io_level:
+        # wrap the Hook() in an IOHook() to operate on non-modified data
+        return build_field(
+            ftype=FieldType.IO,
+            public=False,
+            # meta
+            hook=_hook,
+            io=IOHook(hook=_hook),
+            end=False,
+        )
     return build_field(
         ftype=FieldType.HOOK,
         public=False,
@@ -120,11 +131,13 @@ def hook(
 
 def hook_end(hook_field: Field):
     meta: FieldMeta = hook_field.metadata["datastruct"]
+    # support ending both Hook() and IOHook() fields here
     return build_field(
-        ftype=FieldType.HOOK,
+        ftype=meta.ftype,
         public=False,
         # meta
         hook=meta.hook,
+        io=meta.io,
         end=True,
     )
 

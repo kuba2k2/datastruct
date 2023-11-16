@@ -141,14 +141,35 @@ class IOHook:
     io_write: Optional[WriteType]
     io_seek: Optional[SeekType]
     io_tell: Optional[TellType]
+    hook: Hook
+
+    def __init__(self, hook: Hook = None) -> None:
+        self.hook = hook
 
     def init(self, ctx: Context) -> None:
+        if self.hook:
+            return self.hook.init(ctx)
         return None
 
     def read(self, n: int) -> bytes:
-        return self.io_read(n)
+        s = self.io_read(n)
+        if self.hook:
+            ret = self.hook.update(s, self.ctx)
+            if ret is not None:
+                s = ret
+            ret = self.hook.read(s, self.ctx)
+            if ret is not None:
+                s = ret
+        return s
 
     def write(self, s: bytes) -> int:
+        if self.hook:
+            ret = self.hook.update(s, self.ctx)
+            if ret is not None:
+                s = ret
+            ret = self.hook.write(s, self.ctx)
+            if ret is not None:
+                s = ret
         return self.io_write(s)
 
     def seek(self, offset: int, whence: int) -> int:
@@ -158,6 +179,8 @@ class IOHook:
         return self.io_tell()
 
     def end(self, ctx: Context) -> None:
+        if self.hook:
+            return self.hook.end(ctx)
         return None
 
 
