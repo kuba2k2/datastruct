@@ -201,10 +201,11 @@ def field_validate(field: Field, meta: FieldMeta) -> None:
         if item_type is None:
             # var: ... = repeat()(...)
             raise ValueError("Can't use repeat() for a non-list field")
-        if base_meta.ftype != FieldType.FIELD:
+        if base_meta.ftype not in [FieldType.FIELD, FieldType.COND, FieldType.SWITCH]:
             # var: ... = repeat()(padding(...))
             raise ValueError(
-                "Only field(), subfield() and built() can be used with repeat()"
+                "Only field(), subfield(), built(), cond() and switch() "
+                "can be used with repeat()"
             )
         if base_meta.builder and not base_meta.always:
             # var: ... = repeat()(built(..., always=False))

@@ -324,7 +324,7 @@ class DataStruct:
                 if evaluate(ctx, meta.when) is False:
                     break
 
-                item = cls._read_value(ctx, base_meta, base_field.type)
+                item = cls._read_field(ctx, base_field, base_meta)
                 items.append(item)
 
                 # provide another value 'item' to context lambdas in 'last'
