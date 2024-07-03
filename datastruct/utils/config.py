@@ -3,7 +3,7 @@
 from ..types import Config, Endianness
 
 CONFIG = Config(
-    endianness=Endianness.DEFAULT,
+    endianness=Endianness.LITTLE,
     padding_pattern=b"\xFF",
     padding_check=False,
     repeat_fill=False,

@@ -4,9 +4,7 @@ from . import fields
 from .main import DataStruct
 from .types import (
     BIG,
-    DEFAULT,
     LITTLE,
-    NATIVE,
     NETWORK,
     Adapter,
     Config,
@@ -24,12 +22,10 @@ __all__ = [
     "Config",
     "Container",
     "Context",
-    "DEFAULT",
     "DataStruct",
     "Endianness",
     "Hook",
     "LITTLE",
-    "NATIVE",
     "NETWORK",
     "datastruct",
     "datastruct_config",

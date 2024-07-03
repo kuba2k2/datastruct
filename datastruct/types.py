@@ -239,15 +239,11 @@ class FieldMeta(Container):
 
 
 class Endianness(Enum):
-    DEFAULT = "@"
-    NATIVE = "="
     LITTLE = "<"
     BIG = ">"
-    NETWORK = "!"
+    NETWORK = "!"  # == big-endian
 
 
-DEFAULT = Endianness.DEFAULT
-NATIVE = Endianness.NATIVE
 LITTLE = Endianness.LITTLE
 BIG = Endianness.BIG
 NETWORK = Endianness.NETWORK
