@@ -176,6 +176,8 @@ class DataStruct:
 
             i = 0
             count = evaluate(ctx, meta.count)
+            length = evaluate(ctx, meta.length)
+            end = length and (ctx.P.tell() + length)
             base_field, base_meta = field_get_base(meta)
 
             if isinstance(count, int) and len(value) != count and not base_meta.builder:
@@ -202,7 +204,7 @@ class DataStruct:
             items: Union[list, tuple] = value
             items_iter = iter(items)
 
-            while count is None or i < count:
+            while (count is None or i < count) and (end is None or ctx.P.tell() < end):
                 ctx.P.self = value
                 ctx.P.i = i
                 if evaluate(ctx, meta.when) is False:
@@ -317,10 +319,12 @@ class DataStruct:
 
             i = 0
             count = evaluate(ctx, meta.count)
+            length = evaluate(ctx, meta.length)
+            end = length and (ctx.P.tell() + length)
             base_field, base_meta = field_get_base(meta)
             items = []
 
-            while count is None or i < count:
+            while (count is None or i < count) and (end is None or ctx.P.tell() < end):
                 ctx.P.i = i
                 if evaluate(ctx, meta.when) is False:
                     break

@@ -13,10 +13,13 @@ def repeat(
     *,
     when: Eval[bool] = None,
     last: Eval[bool] = None,
+    length: Eval[int] = None,
     default_factory: Any = MISSING,
 ):
-    if [count, when, last].count(None) == 3:
-        raise ValueError("At least one of 'count', 'when' or 'last' has to be set")
+    if [count, when, last, length].count(None) == 4:
+        raise ValueError(
+            "At least one of 'count', 'when', 'last' or 'length' has to be set"
+        )
 
     return build_wrapper(
         ftype=FieldType.REPEAT,
@@ -26,6 +29,7 @@ def repeat(
         count=count,
         when=when,
         last=last,
+        length=length,
     )
 
 

@@ -230,6 +230,7 @@ class FieldMeta(Container):
     count: Value[int]
     when: Eval[bool]
     last: Eval[bool]
+    length: Eval[int]
     # COND
     condition: Value[bool]
     if_not: Value[Any]
