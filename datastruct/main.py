@@ -30,6 +30,7 @@ from .utils.fields import (
     field_get_type,
     field_switch_base,
     field_validate,
+    is_sub_class,
 )
 from .utils.fmt import fmt_evaluate
 from .utils.misc import SizingIO
@@ -256,7 +257,7 @@ class DataStruct:
     @classmethod
     def _read_value(cls, ctx: Context, meta: FieldMeta, typ: Type[T]) -> T:
         # unpack structures directly
-        if issubclass(typ, DataStruct):
+        if is_sub_class(typ, DataStruct):
             kwargs = {k: evaluate(ctx, v) for k, v in meta.kwargs.items()}
             return typ.unpack(io=ctx.G.io, parent=ctx, **kwargs)
         # evaluate and validate the format

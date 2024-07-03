@@ -12,6 +12,17 @@ from .fmt import fmt_check
 from .misc import pad_up, repstr
 
 
+def is_sub_class(cls, class_or_tuple) -> bool:
+    if not isinstance(class_or_tuple, tuple):
+        class_or_tuple = (class_or_tuple,)
+    if cls is None:
+        return cls in class_or_tuple
+    try:
+        return issubclass(cls, class_or_tuple)
+    except TypeError:
+        return False
+
+
 def field_encode(v: Any) -> Any:
     if isinstance(v, int):
         return v
@@ -21,7 +32,7 @@ def field_encode(v: Any) -> Any:
 
 
 def field_decode(v: Any, cls: type) -> Any:
-    if issubclass(cls, Enum):
+    if is_sub_class(cls, Enum):
         return cls(v)
     return v
 
