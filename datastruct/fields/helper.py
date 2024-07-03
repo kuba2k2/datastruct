@@ -102,9 +102,9 @@ def text(
 
     return adapter(Text())(
         field(
-            lambda ctx: len(ctx.P.self)
-            if variable and ctx.G.packing
-            else evaluate(ctx, length),
+            lambda ctx: (
+                len(ctx.P.self) if variable and ctx.G.packing else evaluate(ctx, length)
+            ),
             default=default,
         )
     )
@@ -302,7 +302,12 @@ def checksum_field(doc: str):
     return wrap
 
 
-def bitfield(fmt: str, cls: Type[T], default: Union[bytes, int, None] = None):
+def bitfield(
+    fmt: str,
+    cls: Type[T],
+    default: Union[bytes, int, None] = None,
+    byteswap: str = None,
+):
     try:
         import bitstruct
     except (ModuleNotFoundError, ImportError):
@@ -317,9 +322,14 @@ def bitfield(fmt: str, cls: Type[T], default: Union[bytes, int, None] = None):
 
     def encode(value: T, *_) -> bytes:
         data = dataclasses.astuple(value)
-        return bitstruct.pack(fmt, *data)
+        packed = bitstruct.pack(fmt, *data)
+        if byteswap:
+            return bitstruct.byteswap(byteswap, packed)
+        return packed
 
     def decode(value: bytes, *_) -> T:
+        if byteswap:
+            value = bitstruct.byteswap(byteswap, value)
         data = bitstruct.unpack(fmt, value)
         return cls(*data)
 
