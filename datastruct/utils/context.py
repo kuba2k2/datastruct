@@ -57,6 +57,8 @@ def build_context(
         ),
         # skip a number of bytes
         skip=lambda length: glob.io.seek(length, SEEK_CUR),
+        # peek data by reading and seeking back
+        peek=lambda length: (glob.io.read(length), glob.io.seek(-length, SEEK_CUR))[0],
         # context arguments
         kwargs=kwargs,
     )

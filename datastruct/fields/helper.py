@@ -29,8 +29,8 @@ def virtual(value: Value[T]):
     )(built(0, builder=value, always=True))
 
 
-def tell():
-    return virtual(lambda ctx: ctx.G.tell())
+def tell(*, relative: bool = False):
+    return virtual(lambda ctx: ctx.P.tell() if relative else ctx.G.tell())
 
 
 def tell_into(into: str):
