@@ -77,6 +77,17 @@ def bytestr(length: Value[int], *, default: bytes = ..., padding: bytes = None):
 
     return adapter(ByteStr())(field(length, default=default))
 
+def varbytes(
+    length: Value[int],
+    *,
+    default: bytes = ...
+):
+    return field(
+        lambda ctx: (
+            len(ctx.P.self) if ctx.G.packing else evaluate(ctx, length)
+        ),
+        default=default,
+    )
 
 def text(
     length: Value[int],
