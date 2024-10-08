@@ -10,6 +10,8 @@ The way of composing structures is somewhat similar to (and inspired by) [Constr
 pip install py-datastruct
 ```
 
+**NOTE:** `pip install datastruct` installs a **different package** by the same name!
+
 ## Examples
 
 Before you read this "documentation", be aware that it is by no means complete, and will probably be not enough for you to understand everything you need.
