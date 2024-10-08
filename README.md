@@ -10,6 +10,19 @@ The way of composing structures is somewhat similar to (and inspired by) [Constr
 pip install py-datastruct
 ```
 
+## Examples
+
+Before you read this "documentation", be aware that it is by no means complete, and will probably be not enough for you to understand everything you need.
+
+Here are a few projects that are using `datastruct`:
+
+- https://github.com/tuya-cloudcutter/cloudcutter-universal/blob/master/cloudcutter/modules/dhcp/structs.py
+- https://github.com/tuya-cloudcutter/bk7231tools/blob/main/bk7231tools/analysis/kvstorage.py
+- https://github.com/libretiny-eu/ltchiptool/blob/master/uf2tool/models/partition.py
+- https://github.com/libretiny-eu/ltchiptool/blob/master/ltchiptool/soc/ambz2/util/models/images.py
+
+If you want your project on this list, feel free to submit a PR.
+
 ## Usage
 
 This simple example illustrates creating a 24-byte long structure, consisting of a 32-bit integer, an 8-byte 0xFF-filled padding, and a 12-byte `bytes` string.
