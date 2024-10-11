@@ -3,8 +3,6 @@
 import pytest
 from base import TestBase, TestData
 
-from datastruct import DataStruct
-
 TEST_DATA = [
     pytest.param(
         TestData(
@@ -19,7 +17,7 @@ TEST_DATA = [
 
 @pytest.mark.parametrize("test", TEST_DATA)
 class TestDummy(TestBase):
-    cls = DataStruct
+    pass
 
 
 del TestBase
