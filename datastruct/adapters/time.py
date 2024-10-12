@@ -13,7 +13,7 @@ def filetime_field(*, default=...):
             "<Q", int((value.timestamp() + 11644473600) * 10000000)
         ),
         decode=lambda value, ctx: datetime.fromtimestamp(
-            int(unpack("<Q", value)[0] / 10000000) - 11644473600
+            (unpack("<Q", value)[0] / 10000000) - 11644473600
         ),
     )(field(8, default=default))
 
