@@ -4,6 +4,7 @@ from dataclasses import Field
 from enum import Enum, auto
 from typing import IO, Any, Callable, Dict, List, Optional, Tuple, Type, TypeVar, Union
 
+from .utils.const import FieldTypes
 from .utils.misc import dict2str
 
 
@@ -203,6 +204,7 @@ class FieldMeta(Container):
     validated: bool
     public: bool
     ftype: FieldType
+    types: FieldTypes
     # FIELD
     fmt: FormatType
     builder: Value[Any]

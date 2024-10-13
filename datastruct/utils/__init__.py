@@ -7,4 +7,5 @@ __all__ = [
     "fmt",
     "misc",
     "public",
+    "types",
 ]
