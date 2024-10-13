@@ -150,8 +150,11 @@ def _validate_cond(field: Field, meta: FieldMeta, valid_type: ValidType) -> None
             raise TypeError(
                 f"Type of 'if_not=' ({if_not_type}) must be part of the union"
             )
+        # for wrapped switch() - don't change the base field type, let it handle that
+        if base_meta.ftype == FieldType.SWITCH:
+            base_field.type = field.type
         # for Union[*, ..., None] - use all non-None types
-        if type(None) in meta.types:
+        elif type(None) in meta.types:
             # var: int | None = cond(...)(field(...))
             types = list(meta.types)
             types.remove(type(None))
@@ -169,11 +172,11 @@ def _validate_cond(field: Field, meta: FieldMeta, valid_type: ValidType) -> None
                 # var: int | bool = cond(..., if_not=lambda ctx: ...)(field(...))
                 # two types - check if any is a DataStruct
                 structs = tuple(is_dataclass(cls) for cls in meta.types)
-                if structs[0] and not structs[1]:
+                if len(structs) == 2 and structs[0] and not structs[1]:
                     # var: DataStruct | int = cond(..., ...)(subfield(...))
                     # var: DataStruct | int = cond(..., ...)(field(...))
                     base_field.type = meta.types[0 if base_meta.fmt is None else 1]
-                elif structs[1] and not structs[0]:
+                elif len(structs) == 2 and structs[1] and not structs[0]:
                     # var: int | DataStruct = cond(..., ...)(subfield(...))
                     # var: int | DataStruct = cond(..., ...)(field(...))
                     base_field.type = meta.types[1 if base_meta.fmt is None else 0]
