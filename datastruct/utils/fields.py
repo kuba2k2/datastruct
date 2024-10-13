@@ -166,8 +166,12 @@ def field_get_default(field: Field, meta: FieldMeta, ds: type) -> Any:
                     items.append(meta.base.default_factory())
                 elif meta.base.default is not Ellipsis:
                     items.append(meta.base.default)
-                else:
+                elif type(meta.base.type) == type:
                     items.append(meta.base.type())
+                else:
+                    # cannot build non-class types (None, Any, Union, etc.)
+                    # bail out, nothing to do
+                    return []
             return field.type(items)
         else:
             # build an empty list for variable-length subfields
@@ -298,11 +302,13 @@ def field_validate(field: Field, meta: FieldMeta) -> None:
         if base_meta.builder and not base_meta.always:
             # var: ... = repeat()(built(..., always=False))
             raise TypeError("Built fields inside repeat() are always built")
+        if not meta.types[2] and base_meta.ftype == FieldType.FIELD:
+            # var: list = repeat()(field(...))
+            raise TypeError("Lists of standard fields must be parameterized")
         base_field.name = field.name
-        base_field.type = field.type
         # "unwrap" item types for repeat fields only
         field.type = meta.types[0]
-        base_field.type = meta.types[2] or meta.types[0]
+        base_field.type = meta.types[2]
         field_validate(base_field, base_meta)
 
     elif meta.ftype == FieldType.COND:
