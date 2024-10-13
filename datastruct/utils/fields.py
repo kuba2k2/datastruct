@@ -7,11 +7,10 @@ from types import FunctionType
 from typing import Any, Optional, Tuple
 
 from ..types import Config, Context, FieldMeta, FieldType
-from .const import ARRAYS
 from .context import evaluate
 from .fmt import fmt_check
 from .misc import pad_up, repstr
-from .types import check_types_match, decode_type
+from .types import ARRAYS, check_types_match, decode_type
 
 UNION_FIELDS = (FieldType.COND, FieldType.SWITCH)
 

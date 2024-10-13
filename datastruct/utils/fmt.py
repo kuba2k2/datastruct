@@ -3,8 +3,10 @@
 from typing import Union
 
 from ..types import Context, Endianness, FormatType, Value
-from .const import FMT_ENDIAN, FMT_SPEC
 from .context import evaluate
+
+FMT_ENDIAN = "@=<>!"
+FMT_SPEC = "cbB?hHiIlLqQnNefds"
 
 
 def fmt_check(fmt: Value[str]) -> None:

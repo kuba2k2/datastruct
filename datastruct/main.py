@@ -5,11 +5,10 @@ import struct
 from dataclasses import MISSING, Field, dataclass
 from functools import lru_cache
 from io import BytesIO
-from typing import IO, Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
+from typing import IO, Any, Dict, List, Optional, Sized, Tuple, Type, TypeVar, Union
 
+from .config import datastruct_get_config
 from .types import Config, Container, Context, FieldMeta, FieldType, T
-from .utils.config import datastruct_get_config
-from .utils.const import ARRAYS, BYTES, EXCEPTIONS
 from .utils.context import (
     build_context,
     build_global_context,
@@ -32,7 +31,7 @@ from .utils.fields import (
 )
 from .utils.fmt import fmt_evaluate
 from .utils.misc import SizingIO
-from .utils.types import check_value_type
+from .utils.types import ARRAYS, BYTES, EXCEPTIONS, check_value_type
 
 
 @dataclass
@@ -512,3 +511,13 @@ class DataStruct:
 
 
 DS = TypeVar("DS", bound=DataStruct)
+
+
+def sizeof(o, ctx: Optional[Context] = None) -> int:
+    if isinstance(o, DataStruct):
+        return o.sizeof(parent=ctx)
+    if isinstance(o, ARRAYS):
+        return sum(i.sizeof(parent=ctx) for i in o)
+    if isinstance(o, Sized):
+        return len(o)
+    raise TypeError(f"Unknown type '{type(o)}'")

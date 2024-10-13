@@ -1,10 +1,15 @@
 #  Copyright (c) Kuba Szczodrzyński 2024-10-12.
 
+import struct
 import typing
 from types import UnionType
-from typing import Any, Union
+from typing import Any, Tuple, Union
 
-from .const import ARRAYS, FieldTypes
+ARRAYS = (list, tuple)
+EXCEPTIONS = (ValueError, TypeError, AttributeError, struct.error)
+BYTES = (bytes, bytearray)
+
+FieldTypes = Union[type, Tuple["FieldTypes", ...]]
 
 
 def decode_type(cls: type) -> FieldTypes:
