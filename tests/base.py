@@ -9,6 +9,18 @@ import pytest
 
 from datastruct import DataStruct
 
+INPUT = b"\x00" * 256
+
+
+@dataclass
+class DummyClass(DataStruct):
+    pass
+
+
+@dataclass
+class OtherClass(DataStruct):
+    pass
+
 
 @dataclass
 class TestData:
