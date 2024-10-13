@@ -13,6 +13,8 @@ from .fmt import fmt_check
 from .misc import pad_up, repstr
 from .types import check_types_match, decode_type
 
+UNION_FIELDS = (FieldType.COND, FieldType.SWITCH)
+
 
 def is_sub_class(cls, class_or_tuple) -> bool:
     if not isinstance(class_or_tuple, tuple):
@@ -220,12 +222,13 @@ def field_validate(field: Field, meta: FieldMeta) -> None:
             raise TypeError("Only cond() and switch() can wrap special fields")
     # reject public fields with incorrect type
     # (except switch() fields, as they can wrap special fields)
-    elif meta.types == type(Ellipsis) and meta.ftype != FieldType.SWITCH:
+    elif meta.types == type(Ellipsis) and meta.ftype not in UNION_FIELDS:
         raise TypeError("Cannot use Ellipsis (...) for standard fields")
 
     is_tuple = isinstance(meta.types, tuple)
     is_valid_repeat = False
     is_valid_union = False
+    is_valid_any = False
     is_valid_ellipsis = False
     is_valid_simple = False
 
@@ -243,12 +246,12 @@ def field_validate(field: Field, meta: FieldMeta) -> None:
 
     # union type (cls, cls...) - only allow cond() or switch()
     elif is_tuple and len(meta.types):
-        if len(meta.types) > 2 and meta.ftype != FieldType.SWITCH:
-            # var: int | float | bytes = field(...)
-            raise TypeError("Use switch() for union of 3 or more types")
-        # len(meta.types) == 2 - cannot be 1
-        if meta.ftype not in [FieldType.COND, FieldType.SWITCH]:
-            if type(None) in meta.types:
+        # len(meta.types) >= 2
+        if meta.ftype not in UNION_FIELDS:
+            if len(meta.types) > 2:
+                # var: int | float | bytes = field(...)
+                raise TypeError("Use switch() for union of 3 or more types")
+            elif type(None) in meta.types:
                 # var: DataStruct | None = field(...)
                 raise TypeError("Use cond() for optional types")
             else:
@@ -258,13 +261,14 @@ def field_validate(field: Field, meta: FieldMeta) -> None:
 
     # special type Any (empty tuple) - only allow switch()
     elif is_tuple:
-        if meta.ftype != FieldType.SWITCH:
+        if meta.ftype not in UNION_FIELDS:
             # var: Any = field(...)
-            raise TypeError("The 'Any' type can only be used with switch()")
+            raise TypeError("The 'Any' type can only be used with switch()/cond()")
+        is_valid_any = True
 
     # special type Ellipsis - only allow cond(), switch()
     elif meta.types == type(Ellipsis):
-        if meta.ftype not in [FieldType.COND, FieldType.SWITCH]:
+        if meta.ftype not in UNION_FIELDS:
             # var: ... = field(...)
             raise TypeError("The Ellipsis (...) can only be used with switch()/cond()")
         is_valid_ellipsis = True
@@ -325,20 +329,20 @@ def field_validate(field: Field, meta: FieldMeta) -> None:
         if is_valid_union:
             # var: int | bool = cond(...)(field(...))
             # var: int | None = cond(...)(field(...))
-            # -> len(meta.types) == 2
+            # -> len(meta.types) >= 2
             # verify that the type is specified for this field
             if if_not_type and if_not_type not in meta.types:
                 # var: int | bool = cond(..., if_not=None)(field(...))
                 raise TypeError(
                     f"Type of 'if_not=' ({if_not_type}) must be part of the union"
                 )
-            # for Union[*, None] - use the first non-None type
+            # for Union[*, ..., None] - use all non-None types
             if type(None) in meta.types:
                 # var: int | None = cond(...)(field(...))
                 types = list(meta.types)
                 types.remove(type(None))
-                base_field.type = types[0]
-            # for Union[*, *] - try to guess the two types
+                base_field.type = types[0] if len(types) == 1 else tuple(types)
+            # for Union[*, *, ...] - try to guess the two types
             else:
                 # var: int | bool = cond(...)(field(...))
                 if if_not_type:
@@ -362,6 +366,10 @@ def field_validate(field: Field, meta: FieldMeta) -> None:
                     else:
                         # var: int | bool = cond(..., ...)(field(...))
                         raise TypeError("Couldn't guess the wrapped field's type")
+        elif is_valid_any:
+            # var: Any = cond(...)(field(...))
+            # pass empty tuple for validation of the base field
+            base_field.type = ()
         elif is_valid_ellipsis:
             # var: ... = cond(...)(field(...))
             # -> meta.types == type(Ellipsis)
@@ -380,9 +388,6 @@ def field_validate(field: Field, meta: FieldMeta) -> None:
         field_validate(base_field, base_meta)
 
     elif meta.ftype == FieldType.SWITCH:
-        # if not is_valid_union and not is_valid_any and not is_valid_ellipsis:
-        #     # var: int = switch(...)
-        #     raise TypeError("Use a union type, 'Any' or '...' for switch() fields")
         # test each case of the switch field
         base_types = []
         for key, (field_type, base_field) in meta.fields.items():

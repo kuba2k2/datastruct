@@ -38,7 +38,7 @@ def decode_type(cls: type) -> FieldTypes:
 
 
 def check_class_type(cls: type, types: FieldTypes) -> bool:
-    if cls == type(Ellipsis) and types == type(Ellipsis):
+    if types == type(Ellipsis):
         return True
     if isinstance(types, type):
         return issubclass(cls, types)
