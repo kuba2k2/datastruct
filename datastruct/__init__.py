@@ -1,7 +1,8 @@
 #  Copyright (c) Kuba Szczodrzyński 2023-1-3.
 
 from . import fields
-from .main import DataStruct
+from .config import datastruct, datastruct_config, datastruct_get_config
+from .main import DataStruct, sizeof
 from .types import (
     BIG,
     LITTLE,
@@ -13,8 +14,6 @@ from .types import (
     Endianness,
     Hook,
 )
-from .utils.config import datastruct_config, datastruct_get_config
-from .utils.public import datastruct, sizeof
 
 __all__ = [
     "Adapter",

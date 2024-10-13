@@ -5,10 +5,11 @@ from dataclasses import Field, is_dataclass
 from io import BytesIO
 from typing import Any, Callable, Optional, Type, Union
 
-from ..main import DataStruct
-from ..types import Adapter, Context, Eval, Hook, IOHook, T, Value
-from ..utils.context import evaluate
-from ..utils.misc import pad_up
+from datastruct.main import DataStruct
+from datastruct.types import Adapter, Context, Eval, Hook, IOHook, T, Value
+from datastruct.utils.context import evaluate
+from datastruct.utils.misc import pad_up
+
 from .special import action, hook, hook_end, io, io_end
 from .standard import built, field
 from .wrapper import adapter, repeat

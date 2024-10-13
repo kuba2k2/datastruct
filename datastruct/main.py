@@ -5,11 +5,10 @@ import struct
 from dataclasses import MISSING, Field, dataclass
 from functools import lru_cache
 from io import BytesIO
-from typing import IO, Any, Dict, List, Optional, Tuple, Type, TypeVar, Union
+from typing import IO, Any, Dict, List, Optional, Sized, Tuple, Type, TypeVar, Union
 
+from .config import datastruct_get_config
 from .types import Config, Container, Context, FieldMeta, FieldType, T
-from .utils.config import datastruct_get_config
-from .utils.const import ARRAYS, BYTES, EXCEPTIONS
 from .utils.context import (
     build_context,
     build_global_context,
@@ -27,27 +26,33 @@ from .utils.fields import (
     field_get_default,
     field_get_meta,
     field_get_padding,
-    field_get_type,
     field_switch_base,
-    field_validate,
-    is_sub_class,
 )
 from .utils.fmt import fmt_evaluate
 from .utils.misc import SizingIO
+from .utils.types import ARRAYS, BYTES, EXCEPTIONS, check_value_type
+from .utils.validation import field_validate
 
 
 @dataclass
 class DataStruct:
     def __post_init__(self) -> None:
         for field, meta, value in self.fields():
-            field_validate(field, meta)
+            try:
+                field_validate(field, meta)
+            except EXCEPTIONS as e:
+                suffix = f"; while initializing '{field.name}'"
+                e.args = (e.args[0] + suffix,)
+                raise e
 
+            # check if value is already set (field has a default=)
             if value != Ellipsis:
-                # try to map simple default values
-                field_type, _ = field_get_type(field)
-                if field_type is not None:
-                    value = field_decode(value, field_type)
-                    if not isinstance(value, field_type):
+                # correct types of simple default values
+                # (enums, fields with adapters, etc.)
+                if meta.types != ():  # not Any
+                    if isinstance(meta.types, type):
+                        value = field_decode(value, meta.types)
+                    if not check_value_type(value, meta.types):
                         if meta.adapter:
                             # try to adapt default values
                             try:
@@ -60,7 +65,7 @@ class DataStruct:
                                 )
                         else:
                             raise TypeError(
-                                f"Wrong field type - expected {field_type}, found default {type(value)}"
+                                f"Wrong field type - expected {meta.types}, found default {type(value)}"
                             )
                     self.__setattr__(field.name, value)
 
@@ -259,7 +264,7 @@ class DataStruct:
     @classmethod
     def _read_value(cls, ctx: Context, meta: FieldMeta, typ: Type[T]) -> T:
         # unpack structures directly
-        if is_sub_class(typ, DataStruct):
+        if issubclass(typ, DataStruct):
             kwargs = {k: evaluate(ctx, v) for k, v in meta.kwargs.items()}
             return typ.unpack(io=ctx.G.io, parent=ctx, **kwargs)
         # evaluate and validate the format
@@ -284,11 +289,11 @@ class DataStruct:
     ) -> Any:
         if meta.ftype == FieldType.FIELD:
             # 3. read the raw value
-            adapted = cls._read_value(ctx, meta, field.type)
+            adapted = cls._read_value(ctx, meta, meta.types)
             # 2. run custom adapter
             encoded = meta.adapter.decode(adapted, ctx) if meta.adapter else adapted
             # 1. decode the value
-            value = field_decode(encoded, field.type)
+            value = field_decode(encoded, meta.types)
             return value
 
         if meta.ftype == FieldType.SEEK:
@@ -313,10 +318,6 @@ class DataStruct:
             return Ellipsis
 
         if meta.ftype == FieldType.REPEAT:
-            # repeat() field - value type must be List
-            if not issubclass(field.type, ARRAYS):
-                raise TypeError("Field type is not an array")
-
             i = 0
             count = evaluate(ctx, meta.count)
             length = evaluate(ctx, meta.length)
@@ -347,7 +348,7 @@ class DataStruct:
                 if meta.if_not is not Ellipsis:
                     value = evaluate(ctx, meta.if_not)
                     return value
-                return Ellipsis
+                return None
             return cls._read_field(ctx, *field_get_base(meta))
 
         if meta.ftype == FieldType.SWITCH:
@@ -510,3 +511,13 @@ class DataStruct:
 
 
 DS = TypeVar("DS", bound=DataStruct)
+
+
+def sizeof(o, ctx: Optional[Context] = None) -> int:
+    if isinstance(o, DataStruct):
+        return o.sizeof(parent=ctx)
+    if isinstance(o, ARRAYS):
+        return sum(i.sizeof(parent=ctx) for i in o)
+    if isinstance(o, Sized):
+        return len(o)
+    raise TypeError(f"Unknown type '{type(o)}'")

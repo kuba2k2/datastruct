@@ -5,7 +5,7 @@ from dataclasses import dataclass
 from enum import Enum, IntEnum, IntFlag
 from hashlib import sha256
 from hmac import HMAC
-from typing import Any, Callable, Dict, Iterable, List, Type, TypeVar
+from typing import Any, Callable, Dict, Iterable, List, Optional, Type, TypeVar
 
 from util import read_data_file
 
@@ -407,7 +407,7 @@ class Image(DataStruct):
     )
 
     # 'header' hash for firmware images
-    ota_signature: bytes = cond(lambda ctx: ctx.is_first and ctx.is_ota)(
+    ota_signature: Optional[bytes] = cond(lambda ctx: ctx.is_first and ctx.is_ota)(
         field("32s", default=FF_32)
     )
     # keyblock for first sub-image only

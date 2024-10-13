@@ -3,7 +3,7 @@
 from io import SEEK_CUR, SEEK_SET
 from typing import IO, Optional
 
-from ..types import Config, Context, FieldMeta, V, Value
+from datastruct.types import Config, Context, FieldMeta, V, Value
 
 
 def evaluate(ctx: Context, v: Value[V]) -> V:

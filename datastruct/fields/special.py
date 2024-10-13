@@ -5,7 +5,8 @@ from functools import partial
 from io import SEEK_CUR, SEEK_SET
 from typing import Any, Callable
 
-from ..types import Eval, FieldMeta, FieldType, Hook, HookType, IOHook, Value
+from datastruct.types import Eval, FieldMeta, FieldType, Hook, HookType, IOHook, Value
+
 from ._utils import build_field
 
 

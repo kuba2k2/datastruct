@@ -3,8 +3,9 @@
 from dataclasses import MISSING, Field
 from typing import Any, Dict, Tuple, Type
 
-from ..types import Adapter, AdapterType, Eval, FieldType, Value
-from ..utils.fields import field_get_meta
+from datastruct.types import Adapter, AdapterType, Eval, FieldType, Value
+from datastruct.utils.fields import field_get_meta
+
 from ._utils import build_field, build_wrapper
 
 

@@ -1,26 +1,14 @@
 #  Copyright (c) Kuba Szczodrzyński 2023-1-6.
 
-from dataclasses import MISSING, Field, is_dataclass
+from dataclasses import MISSING, Field
 from enum import Enum
 from io import SEEK_CUR
-from typing import Any, Optional, Tuple
+from typing import Any, Tuple
 
-from ..types import Config, Context, FieldMeta, FieldType
-from .const import ARRAYS
+from datastruct.types import Config, Context, FieldMeta, FieldType
+
 from .context import evaluate
-from .fmt import fmt_check
 from .misc import pad_up, repstr
-
-
-def is_sub_class(cls, class_or_tuple) -> bool:
-    if not isinstance(class_or_tuple, tuple):
-        class_or_tuple = (class_or_tuple,)
-    if cls is None:
-        return cls in class_or_tuple
-    try:
-        return issubclass(cls, class_or_tuple)
-    except TypeError:
-        return False
 
 
 def field_encode(v: Any) -> Any:
@@ -32,27 +20,13 @@ def field_encode(v: Any) -> Any:
 
 
 def field_decode(v: Any, cls: type) -> Any:
-    if is_sub_class(cls, Enum):
+    if issubclass(cls, Enum):
         return cls(v)
     return v
 
 
-def field_get_type(field: Field) -> Tuple[type, Optional[type]]:
-    field_type = field.type
-    if field_type is Ellipsis:
-        return field_type, None
-    if field_type is Any:
-        return None, None
-    if hasattr(field_type, "__origin__"):
-        field_type = field.type.__origin__
-    if not isinstance(field_type, type):
-        return field_type, None
-    if issubclass(field_type, ARRAYS) and hasattr(field.type, "__args__"):
-        return field_type, field.type.__args__[0]
-    return field_type, None
-
-
 def field_get_meta(field: Field) -> FieldMeta:
+    # run some precondition checks for finding common mistakes
     if callable(field.default):
         raise ValueError(
             f"Field '{field.name}' is most likely a wrapper field; "
@@ -74,6 +48,7 @@ def field_get_meta(field: Field) -> FieldMeta:
             f"remember to invoke wrapper fields (i.e. repeat()(), cond()()) "
             f"passing the base field in the parameters",
         )
+    # finally fetch the metadata object
     return field.metadata["datastruct"]
 
 
@@ -144,10 +119,10 @@ def field_get_default(field: Field, meta: FieldMeta, ds: type) -> Any:
             return field.default
         if field.default_factory is not MISSING:
             return field.default_factory()
-        if issubclass(field.type, ds):
+        if issubclass(meta.types, ds):
             # try to initialize single fields with an empty object
             # noinspection PyArgumentList
-            return field.type()
+            return meta.types()
         return None
 
     # create lists for repeat() fields
@@ -162,8 +137,12 @@ def field_get_default(field: Field, meta: FieldMeta, ds: type) -> Any:
                     items.append(meta.base.default_factory())
                 elif meta.base.default is not Ellipsis:
                     items.append(meta.base.default)
-                else:
+                elif type(meta.base.type) == type:
                     items.append(meta.base.type())
+                else:
+                    # cannot build non-class types (None, Any, Union, etc.)
+                    # bail out, nothing to do
+                    return []
             return field.type(items)
         else:
             # build an empty list for variable-length subfields
@@ -180,64 +159,3 @@ def field_get_default(field: Field, meta: FieldMeta, ds: type) -> Any:
         return Ellipsis
 
     return None
-
-
-def field_validate(field: Field, meta: FieldMeta) -> None:
-    if meta.validated:
-        return
-    field_type, item_type = field_get_type(field)
-
-    # skip special fields (seek, padding, etc)
-    if not meta.public:
-        if field_type is not Ellipsis:
-            raise TypeError("Use Ellipsis (...) for special fields")
-        return
-    if field_type is Ellipsis:
-        raise TypeError("Cannot use Ellipsis for standard fields")
-
-    # check some known type constraints
-    if meta.ftype == FieldType.FIELD:
-        if item_type is not None:
-            # var: List[...] = field(...)
-            raise ValueError("Can't use a list without repeat() wrapper")
-        if is_dataclass(field_type) and meta.fmt and not meta.adapter:
-            # var: DataStruct = field(...)
-            raise ValueError("Use subfield() for instances of DataStruct")
-        if meta.fmt:
-            # validate format specifiers
-            fmt_check(meta.fmt)
-
-    elif meta.ftype == FieldType.REPEAT:
-        base_field, base_meta = field_get_base(meta)
-        if item_type is None:
-            # var: ... = repeat()(...)
-            raise ValueError("Can't use repeat() for a non-list field")
-        if base_meta.ftype not in [FieldType.FIELD, FieldType.COND, FieldType.SWITCH]:
-            # var: ... = repeat()(padding(...))
-            raise ValueError(
-                "Only field(), subfield(), built(), cond() and switch() "
-                "can be used with repeat()"
-            )
-        if base_meta.builder and not base_meta.always:
-            # var: ... = repeat()(built(..., always=False))
-            raise ValueError("Built fields inside repeat() are always built")
-
-    elif meta.ftype == FieldType.SWITCH:
-        # test each case of the switch field
-        for field_type, base_field in meta.fields.values():
-            base_meta = field_get_meta(base_field)
-            base_field.name = field.name
-            base_field.type = field_type
-            field_validate(base_field, base_meta)
-
-    # update types and validate base fields
-    if meta.base:
-        base_field, base_meta = field_get_base(meta)
-        base_field.name = field.name
-        base_field.type = field.type
-        if meta.ftype == FieldType.REPEAT:
-            # "unwrap" item types for repeat fields only
-            field.type = field_type
-            base_field.type = item_type or field_type
-        field_validate(base_field, base_meta)
-    meta.validated = True

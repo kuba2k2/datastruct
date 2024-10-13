@@ -3,7 +3,8 @@
 from dataclasses import MISSING
 from typing import Any
 
-from ..types import FieldType, FormatType, Value
+from datastruct.types import FieldType, FormatType, Value
+
 from ._utils import build_field
 
 
