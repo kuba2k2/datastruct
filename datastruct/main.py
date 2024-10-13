@@ -27,11 +27,11 @@ from .utils.fields import (
     field_get_meta,
     field_get_padding,
     field_switch_base,
-    field_validate,
 )
 from .utils.fmt import fmt_evaluate
 from .utils.misc import SizingIO
 from .utils.types import ARRAYS, BYTES, EXCEPTIONS, check_value_type
+from .utils.validation import field_validate
 
 
 @dataclass
