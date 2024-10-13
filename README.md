@@ -12,6 +12,123 @@ pip install py-datastruct
 
 **NOTE:** `pip install datastruct` installs a **different package** by the same name!
 
+## Breaking changes in v2.0.0
+
+In DataStruct v2.0.0, the field type validation methods have been rewritten. They are now stricter, which means that the type hints will more closely represent the actual possible field values.
+
+The new mechanism allows using **union types** (`int | float | bytes`), as well as **optional fields** (`MyStruct | None`) for fields, which wasn't previously possible. This is particularly useful for `cond()` and `switch()` fields.
+
+Due to this new logic, there are a few **breaking changes** in v2.0.0:
+
+<details>
+
+<summary>`cond()` field default `if_not=` value is now `None` (breaking)</summary>
+
+Previously, if the `cond()` field evaluated to `False`, its value was set to the wrapped field's default value (unless otherwise specified using the `if_not=` argument). For `subfield()`, the structure was created using default values.
+
+Starting in v2.0.0, the field's value will be set to `None`. You can still use `if_not=` to change that (which you should do, if you rely on that field's default value in any way). This means, that the `cond()` field's type specification **must** now include `None` as one of its types.
+
+If your structure was:
+
+```python
+@dataclass
+class MyStruct(DataStruct):
+    var: int = cond(lambda ctx: ctx.my_condition)(field("I"))
+```
+
+it must now be changed to either:
+
+```python
+@dataclass
+class MyStruct(DataStruct):
+    var: int | None = cond(lambda ctx: ctx.my_condition)(field("I"))
+```
+
+or, using `if_not=`:
+
+```python
+@dataclass
+class MyStruct(DataStruct):
+    var: int = cond(lambda ctx: ctx.my_condition, if_not=0)(field("I"))
+```
+
+The same change applies to `subfield()` wrapped in `cond()`.
+
+Note that you **cannot** use `Any` for the `cond()` field, unless it wraps a `switch()` field (in which case the `cond()` field's type is transparently proxied to the `switch()` field).
+
+</details>
+
+<details>
+
+<summary>`switch()` field's type must now account for all possible cases (possibly breaking)</summary>
+
+Since union types are now usable with `switch()` fields, it is required to include all possible cases in the union.
+
+The following structure demonstrates various ways of using the `switch()` field correctly:
+
+```python
+@dataclass
+class MyStruct(DataStruct):
+    var1: int = switch(False)(
+        false=(int, field("H")),
+        true=(int, field("I")),
+    )
+    var2: int | bool = switch(False)(
+        false=(int, field("H")),
+        true=(bool, field("B")),
+    )
+    var3: Any = switch(False)(
+        false=(int, field("H")),
+        true=(bool, field("B")),
+    )
+    var4: Any = switch(False)(
+        false=(..., padding(4)),
+        true=(int, field("I")),
+    )
+    var5: ... = switch(False)(
+        false=(..., padding(4)),
+        true=(int, field("I")),
+    )
+```
+
+Note that the usage of Ellipsis (`...`) is restricted for `switch()` fields that have at least one case using the `...` type.
+
+By the examples above, if you have a `switch()` field that uses union types, but doesn't list all possible cases, you should either add the missing types or change the type to `Any`.
+
+If your `switch()` field uses `subfield()` cases, and you don't want to use the `Any` type, and you don't want to list all possible types, consider using a base class (this is now possible!), like this:
+
+```python
+@dataclass
+class MyBase(DataStruct):
+    # you can optionally add fields here - they will be *before* any subclass' fields
+    pass
+
+@dataclass
+class MyStruct1(MyBase):  # note - no DataStruct here!
+    pass
+
+@dataclass
+class MyStruct2(MyBase):
+    pass
+
+@dataclass
+class MySwitchStruct(MyBase):
+    var1: MyBase = switch(False)(
+        false=(MyStruct1, subfield()),
+        true=(MyStruct2, subfield()),
+    )
+```
+
+</details>
+
+<details>
+
+<summary>The minimum required Python version is now 3.8</summary>
+
+While it *may* still work on 3.7, it is recommended to use 3.10 at least. It *should* work on 3.8, but I can't reliably test everything on old versions to make sure it's fine.
+
+</details>
+
 ## Examples
 
 Before you read this "documentation", be aware that it is by no means complete, and will probably be not enough for you to understand everything you need.
