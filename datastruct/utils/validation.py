@@ -3,7 +3,8 @@
 from dataclasses import Field, is_dataclass
 from types import FunctionType
 
-from ..types import FieldMeta, FieldType
+from datastruct.types import FieldMeta, FieldType
+
 from .fields import field_get_base, field_get_meta
 from .fmt import fmt_check
 from .types import check_types_match, decode_type

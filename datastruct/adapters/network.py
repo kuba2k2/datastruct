@@ -1,6 +1,6 @@
 #  Copyright (c) Kuba Szczodrzyński 2023-9-11.
 
-from ..fields import adapter, field
+from datastruct.fields import adapter, field
 
 
 def ipv4_field(*, default=...):

@@ -2,7 +2,8 @@
 
 from typing import Union
 
-from ..types import Context, Endianness, FormatType, Value
+from datastruct.types import Context, Endianness, FormatType, Value
+
 from .context import evaluate
 
 FMT_ENDIAN = "@=<>!"

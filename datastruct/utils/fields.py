@@ -5,7 +5,8 @@ from enum import Enum
 from io import SEEK_CUR
 from typing import Any, Tuple
 
-from ..types import Config, Context, FieldMeta, FieldType
+from datastruct.types import Config, Context, FieldMeta, FieldType
+
 from .context import evaluate
 from .misc import pad_up, repstr
 

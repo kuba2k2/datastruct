@@ -1,7 +1,7 @@
 #  Copyright (c) Kuba Szczodrzyński 2023-9-11.
 
-from ..fields import adapter, field
-from ..types import Value
+from datastruct.fields import adapter, field
+from datastruct.types import Value
 
 
 def filetime_field(*, default=...):

@@ -4,7 +4,7 @@ import dataclasses
 from dataclasses import MISSING, Field, is_dataclass
 from typing import Any, Callable
 
-from ..types import FieldMeta, FieldType
+from datastruct.types import FieldMeta, FieldType
 
 
 def build_field(
