@@ -5,7 +5,7 @@ from .types import Config, Endianness
 
 CONFIG = Config(
     endianness=Endianness.LITTLE,
-    padding_pattern=b"\xFF",
+    padding_pattern=b"\xff",
     padding_check=False,
     repeat_fill=False,
 )

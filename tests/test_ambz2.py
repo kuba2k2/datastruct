@@ -25,7 +25,7 @@ def build_firmware():
     ota1_offset, _, ota1_end = board_flash["ota1"]
 
     # build the partition table
-    ptable = PartitionTable(user_data=b"\xFF" * 256)
+    ptable = PartitionTable(user_data=b"\xff" * 256)
     for region, type in config.ptable.items():
         offset, length, _ = board_flash[region]
         hash_key = config.keys.hash_keys[region]

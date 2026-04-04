@@ -39,11 +39,11 @@ TEST_DATA_URLS = {
     "raw.fwhs.xip_p.bin": f"{GITHUB_URL}/test_ambz2.raw.fwhs.xip_p.bin",
 }
 
-FLASH_CALIBRATION = b"\x99\x99\x96\x96\x3F\xCC\x66\xFC\xC0\x33\xCC\x03\xE5\xDC\x31\x62"
+FLASH_CALIBRATION = b"\x99\x99\x96\x96\x3f\xcc\x66\xfc\xc0\x33\xcc\x03\xe5\xdc\x31\x62"
 
-FF_48 = b"\xFF" * 48
-FF_32 = b"\xFF" * 32
-FF_16 = b"\xFF" * 16
+FF_48 = b"\xff" * 48
+FF_32 = b"\xff" * 32
+FF_16 = b"\xff" * 16
 
 T = TypeVar("T")
 
