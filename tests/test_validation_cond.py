@@ -1,5 +1,6 @@
 #  Copyright (c) Kuba Szczodrzyński 2024-10-13.
 
+import sys
 from dataclasses import dataclass
 from typing import Any, Union
 
@@ -21,6 +22,7 @@ class TestValidationCondPass:
 
         TestClass.unpack(INPUT)
 
+    @pytest.mark.skipif(sys.version_info < (3, 10), reason="Requires Python 3.10")
     def test_cond_if_not_type_union(self):
         @dataclass
         class TestClass(DataStruct):
@@ -33,6 +35,7 @@ class TestValidationCondPass:
 
         TestClass.unpack(INPUT)
 
+    @pytest.mark.skipif(sys.version_info < (3, 10), reason="Requires Python 3.10")
     def test_cond_type_guess(self):
         @dataclass
         class TestClass(DataStruct):
@@ -49,6 +52,7 @@ class TestValidationCondPass:
 
         TestClass.unpack(INPUT)
 
+    @pytest.mark.skipif(sys.version_info < (3, 10), reason="Requires Python 3.10")
     def test_cond_switch(self):
         @dataclass
         class TestClass(DataStruct):
@@ -106,6 +110,7 @@ class TestValidationCondFail:
             ):
                 cls.unpack(INPUT)
 
+    @pytest.mark.skipif(sys.version_info < (3, 10), reason="Requires Python 3.10")
     def test_cond_if_not_type_union(self):
         @dataclass
         class TestClass1(DataStruct):
@@ -135,6 +140,7 @@ class TestValidationCondFail:
             ):
                 cls.unpack(INPUT)
 
+    @pytest.mark.skipif(sys.version_info < (3, 10), reason="Requires Python 3.10")
     def test_cond_type_guess(self):
         @dataclass
         class TestClass1(DataStruct):
@@ -154,6 +160,7 @@ class TestValidationCondFail:
             ):
                 cls.unpack(INPUT)
 
+    @pytest.mark.skipif(sys.version_info < (3, 10), reason="Requires Python 3.10")
     def test_cond_type_guess_if_not(self):
         @dataclass
         class TestClass1(DataStruct):

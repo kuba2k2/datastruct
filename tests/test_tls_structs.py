@@ -3,6 +3,7 @@
 
 from dataclasses import dataclass
 from enum import Enum, IntEnum
+from typing import List, Union
 
 from datastruct import NETWORK, DataStruct, datastruct
 from datastruct.fields import cond, field, padding, repeat, subfield, switch, text
@@ -95,13 +96,13 @@ class TlsExtension(DataStruct):
             value: str = text(lambda ctx: ctx.length)
 
         names_length: int = field("H")
-        names: list[Name] = repeat(
+        names: List[Name] = repeat(
             length=lambda ctx: ctx.names_length,
         )(subfield())
 
     type: int = field("H")
     length: int = field("H")
-    data: bytes | ServerName = switch(lambda ctx: bool(ctx.length) and ctx.type)(
+    data: Union[bytes, ServerName] = switch(lambda ctx: bool(ctx.length) and ctx.type)(
         _0=(ServerName, subfield()),
         default=(bytes, field(lambda ctx: ctx.length)),
     )
@@ -118,18 +119,18 @@ class TlsHandshakeHello(DataStruct):
         lambda ctx: ctx._.type == TlsHandshake.Type.CLIENT_HELLO,
         if_not=2,
     )(field("H"))
-    cipher_suites: list[int] = repeat(
+    cipher_suites: List[int] = repeat(
         lambda ctx: ctx.cipher_suites_length // 2,
     )(field("H"))
     compression_methods_length: int = cond(
         lambda ctx: ctx._.type == TlsHandshake.Type.CLIENT_HELLO,
         if_not=1,
     )(field("B"))
-    compression_methods: list[int] = repeat(
+    compression_methods: List[int] = repeat(
         lambda ctx: ctx.compression_methods_length,
     )(field("B"))
     extensions_length: int = field("H")
-    extensions: list[TlsExtension] = repeat(
+    extensions: List[TlsExtension] = repeat(
         length=lambda ctx: ctx.extensions_length,
     )(subfield())
 
@@ -146,7 +147,7 @@ class TlsHandshakeCertificate(DataStruct):
 
     _1: ... = padding(1)
     certificates_length: int = field("H")
-    certificates: list[Certificate] = repeat(
+    certificates: List[Certificate] = repeat(
         length=lambda ctx: ctx.certificates_length,
     )(subfield())
 
@@ -169,7 +170,7 @@ class TlsHandshake(DataStruct):
     type: Type = field("B")
     _1: ... = padding(1)
     length: int = field("H")
-    data: bytes | TlsHandshakeHello | TlsHandshakeCertificate = switch(
+    data: Union[bytes, TlsHandshakeHello, TlsHandshakeCertificate] = switch(
         lambda ctx: ctx.type
     )(
         CLIENT_HELLO=(TlsHandshakeHello, subfield()),
@@ -191,7 +192,7 @@ class TlsRecord(DataStruct):
     type: Type = field("B")
     version: TlsVersion = field("H")
     length: int = field("H")
-    data: bytes | TlsHandshake = switch(lambda ctx: ctx.type)(
+    data: Union[bytes, TlsHandshake] = switch(lambda ctx: ctx.type)(
         HANDSHAKE=(TlsHandshake, subfield()),
         default=(bytes, field(lambda ctx: ctx.length)),
     )

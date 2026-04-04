@@ -1,9 +1,14 @@
 #  Copyright (c) Kuba Szczodrzyński 2024-10-12.
 
 import struct
+import sys
 import typing
-from types import UnionType
 from typing import Any, Tuple, Union
+
+if sys.version_info >= (3, 10):
+    from types import UnionType
+else:
+    UnionType = Union
 
 ARRAYS = (list, tuple)
 EXCEPTIONS = (ValueError, TypeError, AttributeError, struct.error)

@@ -3,7 +3,7 @@
 import re
 from dataclasses import dataclass
 from pprint import pformat
-from typing import Type
+from typing import Optional, Type
 
 import pytest
 
@@ -26,10 +26,10 @@ class OtherClass(DataStruct):
 class TestData:
     __test__ = False
 
-    cls: Type[DataStruct] | None = None
-    data: bytes | None = None
-    obj_full: DataStruct | None = None
-    obj_simple: DataStruct | None = None
+    cls: Optional[Type[DataStruct]] = None
+    data: Optional[bytes] = None
+    obj_full: Optional[DataStruct] = None
+    obj_simple: Optional[DataStruct] = None
     context: dict = None
 
     full_after_packing: bool = True

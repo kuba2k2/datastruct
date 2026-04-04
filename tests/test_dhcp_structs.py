@@ -6,7 +6,7 @@ from datetime import timedelta
 from enum import IntEnum, IntFlag
 from ipaddress import IPv4Address
 from random import randint
-from typing import Any
+from typing import Any, List
 
 from macaddress import MAC
 
@@ -200,7 +200,7 @@ class DhcpOption(DataStruct):
             DNS_SERVERS=(IPv4Address, ipv4_field()),
             # other options
             PARAMETER_REQUEST_LIST=(
-                list[DhcpOptionType],
+                List[DhcpOptionType],
                 varlist(lambda ctx: ctx.length)(field("B")),
             ),
             default=(bytes, field(lambda ctx: ctx.length)),
@@ -227,7 +227,7 @@ class DhcpPacket(DataStruct):
     server_host_name: str = text(64, default="")
     boot_file_name: str = text(128, default="")
     magic_cookie: bytes = const(b"\x63\x82\x53\x63")(field(4))
-    options: list[DhcpOption] = repeat(
+    options: List[DhcpOption] = repeat(
         last=lambda ctx: ctx.P.item.option == 255,
         default_factory=lambda: [DhcpOption(DhcpOptionType.END)],
     )(subfield())

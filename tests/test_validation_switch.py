@@ -1,7 +1,8 @@
 #  Copyright (c) Kuba Szczodrzyński 2024-10-13.
 
+import sys
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, List, Optional, Union
 
 import pytest
 from base import INPUT, DummyClass, OtherClass
@@ -21,6 +22,7 @@ class WithBase2(DummyClass):
 
 
 class TestValidationSwitchPass:
+    @pytest.mark.skipif(sys.version_info < (3, 10), reason="Requires Python 3.10")
     def test_switch_simple(self):
         @dataclass
         class TestClass(DataStruct):
@@ -56,6 +58,41 @@ class TestValidationSwitchPass:
 
         TestClass.unpack(INPUT)
 
+    def test_switch_simple_compat(self):
+        @dataclass
+        class TestClass(DataStruct):
+            var1: int = switch(False)(
+                false=(int, field("H")),
+                true=(int, field("I")),
+            )
+            var2: Union[DummyClass, OtherClass] = switch(False)(
+                false=(DummyClass, subfield()),
+                true=(OtherClass, subfield()),
+            )
+            var3: DummyClass = switch(False)(
+                false=(WithBase1, subfield()),
+                true=(WithBase2, subfield()),
+            )
+            var4: Union[DummyClass, int] = switch(False)(
+                false=(WithBase1, subfield()),
+                true=(WithBase2, subfield()),
+                _1=(int, field("I")),
+            )
+            var5: Optional[DummyClass] = switch(False)(
+                false=(WithBase1, subfield()),
+                true=(WithBase2, subfield()),
+                _1=(Optional[DummyClass], cond(False)(subfield())),
+            )
+            var6: Union[int, bool, List[int]] = switch(4)(
+                _0=(int, field("I")),
+                _1=(int, field("H")),
+                _2=(bool, field("H")),
+                _3=(bool, field("H")),
+                _4=(List[int], repeat(2)(field("H"))),
+            )
+
+        TestClass.unpack(INPUT)
+
     def test_switch_any(self):
         @dataclass
         class TestClass(DataStruct):
@@ -74,6 +111,7 @@ class TestValidationSwitchPass:
 
         TestClass.unpack(INPUT)
 
+    @pytest.mark.skipif(sys.version_info < (3, 10), reason="Requires Python 3.10")
     def test_switch_ellipsis(self):
         @dataclass
         class TestClass(DataStruct):
@@ -93,10 +131,30 @@ class TestValidationSwitchPass:
                 true=(int, field("I")),
             )
 
+        def test_switch_ellipsis_compat(self):
+            @dataclass
+            class TestClass(DataStruct):
+                var1: ... = cond(True)(
+                    switch(False)(
+                        false=(DummyClass, subfield()),
+                        true=(OtherClass, subfield()),
+                        _1=(..., padding(4)),
+                    )
+                )
+                var2: ... = switch(False)(
+                    false=(..., padding(4)),
+                    true=(int, field("I")),
+                )
+                var3: Optional[int] = switch(False)(
+                    false=(..., padding(4)),
+                    true=(int, field("I")),
+                )
+
         TestClass.unpack(INPUT)
 
 
 class TestValidationSwitchFail:
+    @pytest.mark.skipif(sys.version_info < (3, 10), reason="Requires Python 3.10")
     def test_switch_type_not_matched(self):
         @dataclass
         class TestClass1(DataStruct):

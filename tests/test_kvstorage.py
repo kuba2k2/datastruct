@@ -1,5 +1,7 @@
 #  Copyright (c) Kuba Szczodrzyński 2024-10-11.
 
+import sys
+
 import pytest
 from base import TestBase, TestData
 from test_kvstorage_structs import *
@@ -286,6 +288,7 @@ TEST_DATA = [
 
 
 @pytest.mark.parametrize("test", TEST_DATA)
+@pytest.mark.skipif(sys.version_info < (3, 10), reason="Requires Python 3.10")
 class TestKVStorage(TestBase):
     pass
 

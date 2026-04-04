@@ -1,7 +1,8 @@
 #  Copyright (c) Kuba Szczodrzyński 2024-10-13.
 
+import sys
 from dataclasses import dataclass
-from typing import Any
+from typing import Any, List, Union
 
 import pytest
 from base import INPUT, DummyClass
@@ -34,6 +35,7 @@ class TestValidationPass:
 
         TestClass.unpack(INPUT)
 
+    @pytest.mark.skipif(sys.version_info < (3, 9), reason="Requires Python 3.9")
     def test_repeat(self):
         @dataclass
         class TestClass(DataStruct):
@@ -49,10 +51,26 @@ class TestValidationPass:
 
         TestClass.unpack(INPUT)
 
+    def test_repeat_compat(self):
+        @dataclass
+        class TestClass(DataStruct):
+            var1: List[int] = repeat(4)(field("I"))
+            var2: List[List[int]] = repeat(4)(repeat(4)(field("I")))
+            var3: list = repeat(4)(
+                switch(True)(
+                    false=(int, field("I")),
+                    true=(int, field("H")),
+                )
+            )
+            var4: List[int] = repeat(4)(built("I", lambda ctx: None))
+
+        TestClass.unpack(INPUT)
+
+    @pytest.mark.skipif(sys.version_info < (3, 9), reason="Requires Python 3.9")
     def test_combo(self):
         @dataclass
         class TestClass(DataStruct):
-            var1: list[int | bool | list[int]] | None = cond(True)(
+            var1: Union[list[Union[int, bool, list[int]]], None] = cond(True)(
                 repeat(4)(
                     switch(4)(
                         _0=(int, field("I")),
@@ -60,7 +78,7 @@ class TestValidationPass:
                         _2=(bool, field("H")),
                         _3=(bool, field("H")),
                         _4=(list[int], repeat(2)(cond(True, if_not=0)(field("H")))),
-                        _5=(list[int | None], repeat(2)(cond(True)(field("H")))),
+                        _5=(list[Union[int, None]], repeat(2)(cond(True)(field("H")))),
                     )
                 )
             )
@@ -95,11 +113,11 @@ class TestValidationFail:
 
         @dataclass
         class TestClass6(DataStruct):
-            var: list[int] = field("I")
+            var: List[int] = field("I")
 
         @dataclass
         class TestClass7(DataStruct):
-            var: int | float | bytes = field("I")
+            var: Union[int, float, bytes] = field("I")
 
         for cls in (TestClass1, TestClass2):
             with pytest.raises(
@@ -177,11 +195,11 @@ class TestValidationFail:
 
         @dataclass
         class TestClass5(DataStruct):
-            var: list[int] = repeat(4)(subfield())
+            var: List[int] = repeat(4)(subfield())
 
         @dataclass
         class TestClass6(DataStruct):
-            var: list[int] = repeat(4)(built("I", lambda ctx: None, always=False))
+            var: List[int] = repeat(4)(built("I", lambda ctx: None, always=False))
 
         with pytest.raises(
             TypeError,
