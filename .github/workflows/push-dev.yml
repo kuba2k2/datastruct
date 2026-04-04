@@ -8,5 +8,19 @@ jobs:
     name: Run Python lint
     uses: kuba2k2/kuba2k2/.github/workflows/lint-python.yml@master
   test-python:
-    name: Run Python tests
+    name: Run Python ${{ matrix.python }} tests
+    strategy:
+      matrix:
+        python:
+          - "3.8"
+          - "3.9"
+          - "3.10"
+          - "3.11"
+          - "3.12"
+          - "3.13"
+          - "3.14"
+        os: [ubuntu-latest]
     uses: kuba2k2/kuba2k2/.github/workflows/test-python.yml@master
+    with:
+      runs-on: ${{ matrix.os }}
+      python-version: ${{ matrix.python }}
