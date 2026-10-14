@@ -13,9 +13,9 @@ packages = [
 python = "^3.8"
 
 [tool.poetry.group.dev.dependencies]
-black = "^24.1.0"
-isort = "^5.12.0"
-autoflake = "^2.1.1"
+black = {version = "^26.10.1", markers = "python_version >= '3.10'"}
+isort = {version = "^9.0.2", markers = "python_version >= '3.10'"}
+autoflake = {version = "^2.4.0", markers = "python_version >= '3.10'"}
 
 [tool.poetry.group.test.dependencies]
 pytest = "^8.3.3"
