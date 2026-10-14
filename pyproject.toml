@@ -23,6 +23,7 @@ macaddress = "^2.0.2"
 pycryptodome = "^3.21.0"
 requests = "^2.32.3"
 bitstruct = "^8.19.0"
+typing-extensions = "4.13.0"
 
 [build-system]
 requires = ["poetry-core"]
